@@ -50,7 +50,7 @@ const generateGradientThumbnail = () => {
 export const useProjectCreation = () => {
   const dispatch = useAppDispatch();
   const profileState = useAppSelector((state) => state.profile);
-  const user = (profileState as any)?.user ?? profileState;
+  const user = profileState.user;
   const projectsState = useAppSelector((state) => state.projects);
   const shapesState = useAppSelector((state) => state.shapes);
 

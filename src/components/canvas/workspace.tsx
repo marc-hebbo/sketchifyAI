@@ -57,7 +57,14 @@ const normalizeRect = (a: Point, b: Point) => {
   return { x, y, w, h };
 };
 
-const shapesFromState = (shapesState: any) =>
+type ShapesStateLike = {
+  shapes: {
+    ids: string[];
+    entities: Record<string, Shape | undefined>;
+  };
+};
+
+const shapesFromState = (shapesState: ShapesStateLike) =>
   (shapesState.shapes.ids as string[])
     .map((id) => shapesState.shapes.entities[id])
     .filter(Boolean) as Shape[];

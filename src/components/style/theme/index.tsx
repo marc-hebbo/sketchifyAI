@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import type { ColorSection } from "@/redux/api/style-guide";
 import ColorSwatch from "../swatch";
 
 type Props = {
@@ -33,11 +34,11 @@ export const ColorTheme = ({ title, swatches, className }: Props) => {
   );
 };
 
-const ThemeContent = ({ colorGuide }: { colorGuide: any[] }) => {
+const ThemeContent = ({ colorGuide }: { colorGuide: ColorSection[] }) => {
   return (
     <div className="flex flex-col gap-10">
       <div className="flex flex-col gap-10">
-        {colorGuide.map((section: any, index: number) => (
+        {colorGuide.map((section, index: number) => (
           <ColorTheme
             key={index}
             title={section.title}

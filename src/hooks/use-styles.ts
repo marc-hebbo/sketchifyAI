@@ -76,9 +76,9 @@ export const useMoodBoard = (guideImages: MoodBoardImage[]) => {
 
   useEffect(() => {
     if (guideImages && guideImages.length > 0) {
-      const serverImages: MoodBoardImage[] = guideImages.map((img: any) => ({
+      const serverImages: MoodBoardImage[] = guideImages.map((img) => ({
         id: img.id,
-        preview: img.url,
+        preview: img.url || img.preview,
         storageId: img.storageId,
         uploaded: true,
         uploading: false,

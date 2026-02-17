@@ -7,10 +7,20 @@ import Image from "next/image";
 import Link from "next/link";
 import React from "react";
 
+type ProjectCard = {
+  _id: string;
+  name?: string;
+  projectNumber: number;
+  thumbnail?: string;
+  lastModified: number;
+  createdAt: number;
+  isPublic?: boolean;
+};
+
 const ProjectsList = () => {
   const { projects } = useProjectCreation();
   const profileState = useAppSelector((state) => state.profile);
-  const user = (profileState as any)?.user ?? profileState;
+  const user = profileState.user;
   const session = user?.name || "guest";
 
   console.log(projects);
@@ -43,7 +53,7 @@ const ProjectsList = () => {
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-          {projects.map((project: any) => (
+          {projects.map((project: ProjectCard) => (
             <Link
               key={project._id}
               href={`/dashboard/${session}/canvas?project=${project._id}`}
@@ -54,7 +64,7 @@ const ProjectsList = () => {
                   {project.thumbnail ? (
                     <Image
                       src={project.thumbnail}
-                      alt={project.name}
+                      alt={project.name || "Untitled Project"}
                       width={300}
                       height={200}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
