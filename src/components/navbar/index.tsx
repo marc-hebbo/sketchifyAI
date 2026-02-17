@@ -22,26 +22,21 @@ const Navbar = () => {
   const projectId = params.get("project");
 
   const pathname = usePathname();
-  //  TODO: add credits logic
   const profileState = useAppSelector((state) => state.profile);
   const me = profileState.user;
-  const session = me?.name || "guest";
 
-  // TODO: Fix these urls
   const tabs: TabProps[] = [
     {
       label: "Canvas",
-      href: `/dashboard/${session}/canvas?project=${projectId}`,
+      href: `/canvas?project=${projectId}`,
       icon: <Hash className="w-4 h-4" />,
     },
     {
       label: "Style Guide",
-      href: `/dashboard/${session}/style-guide?project=${projectId}`,
+      href: `/style-guide?project=${projectId}`,
       icon: <LayoutTemplate className="w-4 h-4" />,
     },
   ];
-
-  // TODO: uncomment this when we have a project
 
   const shouldFetchProject =
     !!projectId && !projectId.startsWith("local-") && !!me?.id;
@@ -50,8 +45,6 @@ const Navbar = () => {
     shouldFetchProject ? { projectId: projectId as Id<"projects"> } : "skip"
   );
 
-  // const project = {title: "My Project"};
-
   const hasCanvas = pathname.includes("canvas");
   const hasStyleGuide = pathname.includes("style-guide");
 
@@ -59,7 +52,7 @@ const Navbar = () => {
     <div className="grid grid-cols-2 lg:grid-cols-3 p-6 fixed top-0 left-0 right-0 z-50">
       <div className="flex items-center gap-4">
         <Link
-          href={`/dashboard/${session}`}
+          href="/"
           className="w-8 h-8 rounded-full border-3 border-white bg-black flex items-center justify-center"
         >
           <div className="w-4 h-4 rounded-full bg-white"></div>
@@ -103,7 +96,6 @@ const Navbar = () => {
       </div>
 
       <div className="flex items-center gap-4 justify-end">
-        <span className="text-sm text-white/50">TODO: credits</span>
         <Button
           variant="secondary"
           className="rounded-full h-12 w-12 flex items-center justify-center backdrop-blur-xl bg-white/[0.08] border border-white/[0.12] saturate-150 hover:bg-white/[0.12]"
@@ -116,7 +108,6 @@ const Navbar = () => {
             <User className="size-5 text-black" />
           </AvatarFallback>
         </Avatar>
-        {/* TODO: Add autosave and create project */}
         {!hasCanvas && !hasStyleGuide && <CreateProject />}
       </div>
     </div>

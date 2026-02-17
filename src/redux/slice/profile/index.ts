@@ -1,4 +1,4 @@
-import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { createSlice } from "@reduxjs/toolkit";
 
 export type AppProfile = {
   id?: string | null;
@@ -13,20 +13,10 @@ const initialState: ProfileState = {
   user: { id: null, name: "guest", email: null, image: null },
 };
 
-
 const slice = createSlice({
-    name : 'profile',
-    initialState,
-    reducers : {
-        setProfile : (state, action: PayloadAction<AppProfile | null>) => {
-            state.user = action.payload;
-        },
-        clearProfile(state){
-            state.user = { id: null, name: "guest", email: null, image: null };
-        },
-    },
-})
+  name: "profile",
+  initialState,
+  reducers: {},
+});
 
-
-export const {setProfile, clearProfile} = slice.actions;
 export default slice.reducer;

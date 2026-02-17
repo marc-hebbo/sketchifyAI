@@ -26,12 +26,6 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const preloadedState = {
-    profile: {
-      user: { id: null, name: "guest", image: "" },
-    },
-  };
-
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
@@ -42,7 +36,7 @@ export default function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <ReduxProvider preloadedState={preloadedState}>
+            <ReduxProvider preloadedState={{}}>
               {children}
             </ReduxProvider>
             <Toaster />

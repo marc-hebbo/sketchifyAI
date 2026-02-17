@@ -1,6 +1,5 @@
 "use client";
 import { useProjectCreation } from "@/hooks/use-project";
-import { useAppSelector } from "@/redux/store";
 import { formatDistanceToNow } from "date-fns";
 import { Plus } from "lucide-react";
 import Image from "next/image";
@@ -19,11 +18,6 @@ type ProjectCard = {
 
 const ProjectsList = () => {
   const { projects } = useProjectCreation();
-  const profileState = useAppSelector((state) => state.profile);
-  const user = profileState.user;
-  const session = user?.name || "guest";
-
-  console.log(projects);
 
   return (
     <div className="space-y-8">
@@ -56,7 +50,7 @@ const ProjectsList = () => {
           {projects.map((project: ProjectCard) => (
             <Link
               key={project._id}
-              href={`/dashboard/${session}/canvas?project=${project._id}`}
+              href={`/canvas?project=${project._id}`}
               className="group cursor-pointer"
             >
               <div className="space-y-3">
