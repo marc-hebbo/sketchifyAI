@@ -23,7 +23,7 @@ const Layout = ({ children }: Props) => {
             <div className="flex flex-col lg:flex-row gap-4 lg:gap-5 items-center justify-between">
               <div>
                 <h1 className="text-3xl lg:text-left text-center font-bold text-foreground">
-                  Style Guide
+                  Style Guide for later
                 </h1>
                 <p className="text-muted-foreground mt-2 text-center lg:text-left">
                   Manage your style guide for your project.
