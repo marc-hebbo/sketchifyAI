@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/theme/provider";
 import { Toaster } from "@/components/ui/sonner";
 import { ConvexClientProvider } from "@/convex/provider";
 import ReduxProvider from "@/redux/provider";
+import Preloader from "@/components/preloader";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,7 +38,9 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <ReduxProvider preloadedState={{}}>
-              {children}
+              <Preloader>
+                {children}
+              </Preloader>
             </ReduxProvider>
             <Toaster />
           </ThemeProvider>
