@@ -1,7 +1,7 @@
 
 import { useMutation } from "convex/react";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
@@ -37,12 +37,14 @@ export const useMoodBoard = (guideImages: MoodBoardImage[]) => {
 
   const { watch, setValue, getValues } = form;
   const images = watch("images");
+  const imagesRef = useRef(images);
+  imagesRef.current = images;
 
   const generateUploadUrl = useMutation(api.moodboard.generateUploadUrl);
   const removeMoodBoardImage = useMutation(api.moodboard.removeMoodBoardImage);
   const addMoodBoardImage = useMutation(api.moodboard.addMoodBoardImage);
 
-  const uploadImage = async (
+  const uploadImage = useCallback(async (
     file: File
   ): Promise<{ storageId: string; url?: string }> => {
     if (isLocalProject) {
@@ -72,7 +74,7 @@ export const useMoodBoard = (guideImages: MoodBoardImage[]) => {
       console.error(error);
       throw error;
     }
-  };
+  }, [isLocalProject, generateUploadUrl, addMoodBoardImage, projectId]);
 
   useEffect(() => {
     if (guideImages && guideImages.length > 0) {
@@ -253,15 +255,15 @@ export const useMoodBoard = (guideImages: MoodBoardImage[]) => {
     if (images.length > 0) {
       uploadPendingImages();
     }
-  }, [images, setValue, getValues, isLocalProject]);
+  }, [images, setValue, getValues, isLocalProject, uploadImage]);
 
   useEffect(() => {
     return () => {
-      images.forEach((image) => {
+      imagesRef.current.forEach((image) => {
         URL.revokeObjectURL(image.preview);
       });
     };
-  },[]);
+  }, []);
 
 
   return {

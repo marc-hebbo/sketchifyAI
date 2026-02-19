@@ -24,7 +24,7 @@ const Navbar = () => {
   const pathname = usePathname();
   //  TODO: add credits logic
   const profileState = useAppSelector((state) => state.profile);
-  const me = (profileState as any)?.user ?? profileState;
+  const me = profileState.user;
   const session = me?.name || "guest";
 
   // TODO: Fix these urls
