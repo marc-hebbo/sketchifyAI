@@ -1,0 +1,3 @@
+Tony and I picked to used recraft as it delivers a higher and better resolution overall in comparison to Gemini only. 
+Also this is what makes the application special, we use through one request many AIs so the user gets the best without having to use 
+multiple applications.

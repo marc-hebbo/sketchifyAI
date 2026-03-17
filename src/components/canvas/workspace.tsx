@@ -42,6 +42,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import AuthDialog from "@/components/auth/auth-dialog";
 
 type Point = { x: number; y: number };
 
@@ -97,6 +98,8 @@ const CanvasWorkspace = () => {
   const [showResultDialog, setShowResultDialog] = useState(false);
   const [showBriefDialog, setShowBriefDialog] = useState(false);
   const [briefInput, setBriefInput] = useState("");
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const user = useAppSelector((state) => state.profile.user);
 
   const captureCanvasAsImage = useCallback(async (): Promise<string> => {
     const svg = svgRef.current;
@@ -153,9 +156,19 @@ const CanvasWorkspace = () => {
       toast.error("Please draw something first!");
       return;
     }
+    if (!user?.id) {
+      setShowAuthDialog(true);
+      return;
+    }
     setBriefInput("");
     setShowBriefDialog(true);
-  }, [shapes.length]);
+  }, [shapes.length, user?.id]);
+
+  // Called after successful auth — proceed to brief dialog
+  const handleAuthSuccess = useCallback(() => {
+    setBriefInput("");
+    setShowBriefDialog(true);
+  }, []);
 
   // Submits the brief and generates the image from sketch
   const handleSubmitBrief = useCallback(async (brief: string) => {
@@ -706,6 +719,12 @@ const CanvasWorkspace = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AuthDialog
+        open={showAuthDialog}
+        onOpenChange={setShowAuthDialog}
+        onSuccess={handleAuthSuccess}
+      />
     </div>
   );
 };
