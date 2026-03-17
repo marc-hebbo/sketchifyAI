@@ -16,7 +16,16 @@ const initialState: ProfileState = {
 const slice = createSlice({
   name: "profile",
   initialState,
-  reducers: {},
+  reducers: {
+    setUser(state, action: { payload: AppProfile | null }) {
+      state.user = action.payload;
+    },
+    clearUser(state) {
+      state.user = initialState.user;
+    },
+  },
 });
+
+export const { setUser, clearUser } = slice.actions;
 
 export default slice.reducer;
