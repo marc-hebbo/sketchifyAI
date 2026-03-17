@@ -46,36 +46,38 @@ const ProjectsList = () => {
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5 md:gap-6">
           {projects.map((project: ProjectCard) => (
             <Link
               key={project._id}
               href={`/canvas?project=${project._id}`}
               className="group cursor-pointer"
             >
-              <div className="space-y-3">
-                <div className="aspect-[4/3] rounded-lg overflow-hidden bg-muted">
-                  {project.thumbnail ? (
-                    <Image
-                      src={project.thumbnail}
-                      alt={project.name || "Untitled Project"}
-                      width={300}
-                      height={200}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                      <Plus className="w-8 h-8 text-gray-400" />
-                    </div>
-                  )}
-                </div>
-                <div className="space-y-1">
-                    <h3 className="font-medium text-foreground text-sm truncate group-hover:text-primary transition-colors " >
-                        {project.name || "Untitled Project"}
+              <div className="h-full rounded-lg border border-transparent bg-card p-2 transition-all duration-200 group-hover:border-border group-hover:shadow-md group-hover:-translate-y-1">
+                <div className="space-y-3">
+                  <div className="aspect-[4/3] rounded-md overflow-hidden bg-muted">
+                    {project.thumbnail ? (
+                      <Image
+                        src={project.thumbnail}
+                        alt={project.name || "Untitled Project"}
+                        width={300}
+                        height={200}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                        <Plus className="w-8 h-8 text-gray-400" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-2 px-1">
+                    <h3 className="font-medium text-foreground text-sm truncate group-hover:text-primary transition-colors">
+                      {project.name || "Untitled Project"}
                     </h3>
                     <p className="text-xs text-muted-foreground">
-                        {formatDistanceToNow(new Date(project.lastModified), { addSuffix: true })}
+                      {formatDistanceToNow(new Date(project.lastModified), { addSuffix: true })}
                     </p>
+                  </div>
                 </div>
               </div>
             </Link>
