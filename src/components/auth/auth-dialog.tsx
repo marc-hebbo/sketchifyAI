@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -21,18 +21,28 @@ type AuthDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  defaultMode?: "sign-in" | "sign-up";
 };
 
 export default function AuthDialog({
   open,
   onOpenChange,
   onSuccess,
+  defaultMode,
 }: AuthDialogProps) {
-  const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-in");
+  const [mode, setMode] = useState<"sign-in" | "sign-up">(
+    defaultMode ?? "sign-in"
+  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const dispatch = useAppDispatch();
+
+  useEffect(() => {
+    if (!open) return;
+    if (!defaultMode) return;
+    setMode(defaultMode);
+  }, [open, defaultMode]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
