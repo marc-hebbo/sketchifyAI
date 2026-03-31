@@ -17,7 +17,7 @@ type ProjectCard = {
 };
 
 const ProjectsList = () => {
-  const { projects } = useProjectCreation();
+  const { projects, createProject, isCreating } = useProjectCreation();
 
   return (
     <div className="space-y-8">
@@ -34,11 +34,14 @@ const ProjectsList = () => {
 
       {projects.length === 0 ? (
         <div className="text-center py-20">
-          <div className="w-16 h-16 mx-auto mb-4 rounded-lg bg-muted flex items-center justify-center">
-            <Plus className="w-8 h-8 text-muted-foreground" />
-          </div>
+          <button
+            onClick={() => createProject()}
+            disabled={isCreating}
+            className="w-16 h-16 mx-auto mb-4 rounded-lg bg-muted flex items-center justify-center hover:bg-muted/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed group"
+          >
+            <Plus className="w-8 h-8 text-muted-foreground group-hover:scale-110 transition-transform" />
+          </button>
           <h3 className="text-lg font-medium text-foreground mb-2">
-            {" "}
             No projects yet
           </h3>
           <p className="text-sm text-muted-foreground mb-6">
