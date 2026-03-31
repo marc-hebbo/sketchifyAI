@@ -6,7 +6,6 @@ import {
   createProjectStart,
   createProjectSuccess,
   removeProject,
-  updateProject,
 } from "@/redux/slice/projects";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 import { useMutation } from "convex/react";
@@ -58,7 +57,6 @@ export const useProjectCreation = () => {
 
   const convexCreateProject = useMutation(api.projects.createProject);
   const convexDeleteProject = useMutation(api.projects.deleteProject);
-  const convexRenameProject = useMutation(api.projects.renameProject);
 
   const createProject = async (name?: string) => {
     dispatch(createProjectStart());
@@ -143,51 +141,9 @@ export const useProjectCreation = () => {
     }
   };
 
-  const renameProject = async (projectId: string, name: string) => {
-    try {
-      if (projectId.startsWith("local-")) {
-        const project = projectsState.projects.find((p) => p._id === projectId);
-        if (project) {
-          dispatch(
-            updateProject({
-              ...project,
-              name,
-              lastModified: Date.now(),
-            })
-          );
-        }
-        toast.success("Project renamed locally");
-        return;
-      }
-
-      if (!user?.id) return;
-
-      await convexRenameProject({
-        projectId: projectId as Id<"projects">,
-        name,
-      });
-
-      const project = projectsState.projects.find((p) => p._id === projectId);
-      if (project) {
-        dispatch(
-          updateProject({
-            ...project,
-            name,
-            lastModified: Date.now(),
-          })
-        );
-      }
-      toast.success("Project renamed successfully");
-    } catch (error) {
-      console.error("Failed to rename project:", error);
-      toast.error("Failed to rename project");
-    }
-  };
-
   return {
     createProject,
     deleteProject,
-    renameProject,
     isCreating: projectsState.isCreating,
     projects: projectsState.projects,
     projectsTotal: projectsState.total,

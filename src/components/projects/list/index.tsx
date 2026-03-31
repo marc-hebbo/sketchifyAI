@@ -1,10 +1,10 @@
 "use client";
 import { useProjectCreation } from "@/hooks/use-project";
 import { formatDistanceToNow } from "date-fns";
-import { Check, Plus, Trash2, X } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import React, { useState } from "react";
+import React from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,30 +28,7 @@ type ProjectCard = {
 };
 
 const ProjectsList = () => {
-  const { projects, createProject, deleteProject, renameProject, isCreating } = useProjectCreation();
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [tempName, setTempName] = useState("");
-
-  const startEditing = (e: React.MouseEvent, project: ProjectCard) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setEditingId(project._id);
-    setTempName(project.name || "");
-  };
-
-  const handleRename = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (editingId && tempName.trim()) {
-      await renameProject(editingId, tempName.trim());
-    }
-    setEditingId(null);
-  };
-
-  const cancelEditing = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setEditingId(null);
-  };
+  const { projects, createProject, deleteProject, isCreating } = useProjectCreation();
 
   return (
     <div className="space-y-8">
@@ -109,42 +86,9 @@ const ProjectsList = () => {
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300" />
                     </div>
                     <div className="space-y-1 px-2 pb-1">
-                      {editingId === project._id ? (
-                        <div 
-                          className="flex items-center gap-1"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <input
-                            autoFocus
-                            className="w-full bg-muted/50 border border-primary/20 rounded px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary/30"
-                            value={tempName}
-                            onChange={(e) => setTempName(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") handleRename();
-                              if (e.key === "Escape") setEditingId(null);
-                            }}
-                          />
-                          <button 
-                            onClick={(e) => { e.preventDefault(); handleRename(); }}
-                            className="p-1 hover:text-green-500 transition-colors"
-                          >
-                            <Check className="w-3.5 h-3.5" />
-                          </button>
-                          <button 
-                            onClick={cancelEditing}
-                            className="p-1 hover:text-red-500 transition-colors"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      ) : (
-                        <h3 
-                          className="font-medium text-foreground text-sm truncate group-hover:text-primary transition-colors duration-200"
-                          onClick={(e) => startEditing(e, project)}
-                        >
-                          {project.name || "Untitled Project"}
-                        </h3>
-                      )}
+                      <h3 className="font-medium text-foreground text-sm truncate group-hover:text-primary transition-colors duration-200">
+                        {project.name || "Untitled Project"}
+                      </h3>
                       <p className="text-[10px] text-muted-foreground/50 font-normal lowercase">
                         edited {formatDistanceToNow(new Date(project.lastModified), { addSuffix: true })}
                       </p>

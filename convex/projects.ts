@@ -121,15 +121,3 @@ export const deleteProject = mutation({
     return { success: true };
   },
 });
-
-export const renameProject = mutation({
-  args: { projectId: v.id("projects"), name: v.string() },
-  handler: async (ctx, { projectId, name }) => {
-    const project = await ctx.db.get(projectId);
-    if (!project) {
-      throw new Error("Project not found");
-    }
-    await ctx.db.patch(projectId, { name, lastModified: Date.now() });
-    return { success: true };
-  },
-});
