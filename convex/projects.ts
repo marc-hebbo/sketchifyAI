@@ -109,3 +109,27 @@ export const getProjectStyleGuide = query({
     }
   },
 });
+
+export const deleteProject = mutation({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, { projectId }) => {
+    const project = await ctx.db.get(projectId);
+    if (!project) {
+      throw new Error("Project not found");
+    }
+    await ctx.db.delete(projectId);
+    return { success: true };
+  },
+});
+
+export const renameProject = mutation({
+  args: { projectId: v.id("projects"), name: v.string() },
+  handler: async (ctx, { projectId, name }) => {
+    const project = await ctx.db.get(projectId);
+    if (!project) {
+      throw new Error("Project not found");
+    }
+    await ctx.db.patch(projectId, { name, lastModified: Date.now() });
+    return { success: true };
+  },
+});

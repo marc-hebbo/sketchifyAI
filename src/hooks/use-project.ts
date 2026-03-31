@@ -5,9 +5,11 @@ import {
   createProjectFailure,
   createProjectStart,
   createProjectSuccess,
+  removeProject,
+  updateProject,
 } from "@/redux/slice/projects";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
-import { fetchMutation } from "convex/nextjs";
+import { useMutation } from "convex/react";
 import { toast } from "sonner";
 import { api } from "../../convex/_generated/api";
 import { Id } from "../../convex/_generated/dataModel";
@@ -54,6 +56,10 @@ export const useProjectCreation = () => {
   const projectsState = useAppSelector((state) => state.projects);
   const shapesState = useAppSelector((state) => state.shapes);
 
+  const convexCreateProject = useMutation(api.projects.createProject);
+  const convexDeleteProject = useMutation(api.projects.deleteProject);
+  const convexRenameProject = useMutation(api.projects.renameProject);
+
   const createProject = async (name?: string) => {
     dispatch(createProjectStart());
     try {
@@ -82,7 +88,7 @@ export const useProjectCreation = () => {
         return;
       }
 
-      const result = await fetchMutation(api.projects.createProject, {
+      const result = await convexCreateProject({
         userId: user.id as Id<"users">,
         name: name || undefined,
         sketchesData: {
@@ -108,14 +114,80 @@ export const useProjectCreation = () => {
 
       dispatch(createProjectSuccess());
       toast.success("Project created successfully");
-    } catch {
+    } catch (error) {
+      console.error("Failed to create project:", error);
       dispatch(createProjectFailure("Failed to create project"));
       toast.error("Failed to create project");
     }
   };
 
+  const deleteProject = async (projectId: string) => {
+    try {
+      if (projectId.startsWith("local-")) {
+        dispatch(removeProject(projectId));
+        toast.success("Project deleted locally");
+        return;
+      }
+
+      if (!user?.id) return;
+
+      await convexDeleteProject({
+        projectId: projectId as Id<"projects">,
+      });
+
+      dispatch(removeProject(projectId));
+      toast.success("Project deleted successfully");
+    } catch (error) {
+      console.error("Failed to delete project:", error);
+      toast.error("Failed to delete project");
+    }
+  };
+
+  const renameProject = async (projectId: string, name: string) => {
+    try {
+      if (projectId.startsWith("local-")) {
+        const project = projectsState.projects.find((p) => p._id === projectId);
+        if (project) {
+          dispatch(
+            updateProject({
+              ...project,
+              name,
+              lastModified: Date.now(),
+            })
+          );
+        }
+        toast.success("Project renamed locally");
+        return;
+      }
+
+      if (!user?.id) return;
+
+      await convexRenameProject({
+        projectId: projectId as Id<"projects">,
+        name,
+      });
+
+      const project = projectsState.projects.find((p) => p._id === projectId);
+      if (project) {
+        dispatch(
+          updateProject({
+            ...project,
+            name,
+            lastModified: Date.now(),
+          })
+        );
+      }
+      toast.success("Project renamed successfully");
+    } catch (error) {
+      console.error("Failed to rename project:", error);
+      toast.error("Failed to rename project");
+    }
+  };
+
   return {
     createProject,
+    deleteProject,
+    renameProject,
     isCreating: projectsState.isCreating,
     projects: projectsState.projects,
     projectsTotal: projectsState.total,

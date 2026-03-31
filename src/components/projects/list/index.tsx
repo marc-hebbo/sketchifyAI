@@ -1,10 +1,21 @@
 "use client";
 import { useProjectCreation } from "@/hooks/use-project";
 import { formatDistanceToNow } from "date-fns";
-import { Plus } from "lucide-react";
+import { Check, Plus, Trash2, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import React from "react";
+import React, { useState } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 type ProjectCard = {
   _id: string;
@@ -17,7 +28,30 @@ type ProjectCard = {
 };
 
 const ProjectsList = () => {
-  const { projects, createProject, isCreating } = useProjectCreation();
+  const { projects, createProject, deleteProject, renameProject, isCreating } = useProjectCreation();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [tempName, setTempName] = useState("");
+
+  const startEditing = (e: React.MouseEvent, project: ProjectCard) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setEditingId(project._id);
+    setTempName(project.name || "");
+  };
+
+  const handleRename = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (editingId && tempName.trim()) {
+      await renameProject(editingId, tempName.trim());
+    }
+    setEditingId(null);
+  };
+
+  const cancelEditing = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setEditingId(null);
+  };
 
   return (
     <div className="space-y-8">
@@ -51,39 +85,105 @@ const ProjectsList = () => {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 sm:gap-5 md:gap-6">
           {projects.map((project: ProjectCard) => (
-            <Link
-              key={project._id}
-              href={`/canvas?project=${project._id}`}
-              className="group cursor-pointer"
-            >
-              <div className="h-full rounded-lg border border-transparent bg-card p-2 transition-all duration-200 group-hover:border-border group-hover:shadow-md group-hover:-translate-y-1">
-                <div className="space-y-3">
-                  <div className="aspect-[4/3] rounded-md overflow-hidden bg-muted">
-                    {project.thumbnail ? (
-                      <Image
-                        src={project.thumbnail}
-                        alt={project.name || "Untitled Project"}
-                        width={300}
-                        height={200}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
-                        <Plus className="w-8 h-8 text-gray-400" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="space-y-2 px-1">
-                    <h3 className="font-medium text-foreground text-sm truncate group-hover:text-primary transition-colors">
-                      {project.name || "Untitled Project"}
-                    </h3>
-                    <p className="text-xs text-muted-foreground">
-                      {formatDistanceToNow(new Date(project.lastModified), { addSuffix: true })}
-                    </p>
+            <div key={project._id} className="group relative">
+              <Link
+                href={`/canvas?project=${project._id}`}
+                className="block cursor-pointer"
+              >
+                <div className="h-full rounded-xl border border-border/40 bg-card p-2 transition-all duration-300 group-hover:border-primary/20 group-hover:shadow-xl group-hover:shadow-primary/5 group-hover:-translate-y-1">
+                  <div className="space-y-3">
+                    <div className="aspect-[4/3] rounded-lg overflow-hidden bg-muted/50 relative">
+                      {project.thumbnail ? (
+                        <Image
+                          src={project.thumbnail}
+                          alt={project.name || "Untitled Project"}
+                          width={300}
+                          height={200}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center">
+                          <Plus className="w-8 h-8 text-muted-foreground/40" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-300" />
+                    </div>
+                    <div className="space-y-1 px-2 pb-1">
+                      {editingId === project._id ? (
+                        <div 
+                          className="flex items-center gap-1"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <input
+                            autoFocus
+                            className="w-full bg-muted/50 border border-primary/20 rounded px-1 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary/30"
+                            value={tempName}
+                            onChange={(e) => setTempName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handleRename();
+                              if (e.key === "Escape") setEditingId(null);
+                            }}
+                          />
+                          <button 
+                            onClick={(e) => { e.preventDefault(); handleRename(); }}
+                            className="p-1 hover:text-green-500 transition-colors"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                          </button>
+                          <button 
+                            onClick={cancelEditing}
+                            className="p-1 hover:text-red-500 transition-colors"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <h3 
+                          className="font-medium text-foreground text-sm truncate group-hover:text-primary transition-colors duration-200"
+                          onClick={(e) => startEditing(e, project)}
+                        >
+                          {project.name || "Untitled Project"}
+                        </h3>
+                      )}
+                      <p className="text-[10px] text-muted-foreground/50 font-normal lowercase">
+                        edited {formatDistanceToNow(new Date(project.lastModified), { addSuffix: true })}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Link>
+              </Link>
+
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <button
+                    className="absolute bottom-4 right-4 z-20 p-2 text-muted-foreground/40 hover:text-red-500 rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-200"
+                    aria-label="Delete project"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </AlertDialogTrigger>
+                <AlertDialogContent className="max-w-[400px] rounded-2xl border-border/40 bg-background/95 backdrop-blur-xl">
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="text-xl font-semibold">Delete Project?</AlertDialogTitle>
+                    <AlertDialogDescription className="text-muted-foreground">
+                      This will permanently remove <span className="text-foreground font-medium">"{project.name || "Untitled Project"}"</span>. This action cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter className="gap-2 sm:gap-0">
+                    <AlertDialogCancel className="rounded-xl border-border/50 hover:bg-muted/50">
+                      Cancel
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={() => deleteProject(project._id)}
+                      className="bg-red-500 hover:bg-red-600 text-white rounded-xl border-none shadow-lg shadow-red-500/20"
+                    >
+                      Delete Project
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
           ))}
         </div>
       )}
