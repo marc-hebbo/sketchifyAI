@@ -1,3 +1,4 @@
+import { moderateContent } from "@/lib/moderation";
 import { NextResponse } from "next/server";
 
 const RECRAFT_API_KEY = process.env.RECRAFT_API_KEY;
@@ -108,6 +109,18 @@ export async function POST(request: Request) {
     if (!image.startsWith("data:image/")) {
       return NextResponse.json(
         { error: "Invalid image format. Expected base64 data URI." },
+        { status: 400 }
+      );
+    }
+
+    // Check for inappropriate content using Gemini
+    console.log("Moderating content...");
+    const moderation = await moderateContent(brief, image);
+    
+    if (moderation.isInappropriate) {
+      console.warn("Inappropriate content blocked:", moderation.reason);
+      return NextResponse.json(
+        { error: `Content restricted: ${moderation.reason || "Inappropriate content detected."}` },
         { status: 400 }
       );
     }
