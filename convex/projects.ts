@@ -109,3 +109,15 @@ export const getProjectStyleGuide = query({
     }
   },
 });
+
+export const deleteProject = mutation({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, { projectId }) => {
+    const project = await ctx.db.get(projectId);
+    if (!project) {
+      throw new Error("Project not found");
+    }
+    await ctx.db.delete(projectId);
+    return { success: true };
+  },
+});
