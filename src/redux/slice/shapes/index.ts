@@ -112,6 +112,8 @@ interface ShapesState {
   shapes: EntityState<Shape, string>;
   selected: SelectionMap;
   frameCounter: number;
+  currentStroke: string;
+  currentFill: string | null;
 }
 
 const initialState: ShapesState = {
@@ -119,6 +121,8 @@ const initialState: ShapesState = {
   shapes: shapesAdapter.getInitialState(),
   selected: {},
   frameCounter: 0,
+  currentStroke: "#ffffff",
+  currentFill: null,
 };
 
 const DEFAULTS = { stroke: "#ffff", strokeWidth: 2 as const };
@@ -311,6 +315,13 @@ const shapesSlice = createSlice({
       if (action.payload !== "select") state.selected = {};
     },
 
+    setCurrentStroke(state, action: PayloadAction<string>) {
+      state.currentStroke = action.payload;
+    },
+    setCurrentFill(state, action: PayloadAction<string | null>) {
+      state.currentFill = action.payload;
+    },
+
     addFrame(
       state,
       action: PayloadAction<
@@ -419,6 +430,8 @@ const shapesSlice = createSlice({
 
 export const {
   setTool,
+  setCurrentStroke,
+  setCurrentFill,
   addFrame,
   addRect,
   addEllipse,
