@@ -95,10 +95,10 @@ const ColorPicker = () => {
             className="h-10 w-10 rounded-xl border border-white/10 p-0"
             aria-label="Stroke color"
           >
-            <div className="relative flex items-center justify-center">
-              <PenLine className="h-4 w-4 text-white/70" />
+            <div className="relative flex h-full w-full items-center justify-center">
+              <PenLine className="-translate-y-0.5 h-4 w-4 text-white/70" />
               <div
-                className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 h-1 w-5 rounded-full"
+                className="absolute bottom-1 left-1/2 h-1 w-5 -translate-x-1/2 rounded-full"
                 style={{ backgroundColor: currentStroke }}
               />
             </div>
@@ -142,10 +142,10 @@ const ColorPicker = () => {
             className="h-10 w-10 rounded-xl border border-white/10 p-0"
             aria-label="Fill color"
           >
-            <div className="relative flex items-center justify-center">
-              <Paintbrush className="h-4 w-4 text-white/70" />
+            <div className="relative flex h-full w-full items-center justify-center">
+              <Paintbrush className="-translate-y-0.5 h-4 w-4 text-white/70" />
               <div
-                className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 h-1 w-5 rounded-full border border-white/20"
+                className="absolute bottom-1 left-1/2 h-1 w-5 -translate-x-1/2 rounded-full border border-white/20"
                 style={{
                   backgroundColor: currentFill ?? "transparent",
                   backgroundImage: currentFill
