@@ -78,6 +78,67 @@ const normalizeRect = (a: Point, b: Point) => {
   return { x, y, w, h };
 };
 
+const distancePointToSegment = (point: Point, start: Point, end: Point) => {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const lengthSquared = dx * dx + dy * dy;
+
+  if (lengthSquared === 0) {
+    return Math.hypot(point.x - start.x, point.y - start.y);
+  }
+
+  const t = Math.max(
+    0,
+    Math.min(1, ((point.x - start.x) * dx + (point.y - start.y) * dy) / lengthSquared)
+  );
+  const projectedX = start.x + t * dx;
+  const projectedY = start.y + t * dy;
+
+  return Math.hypot(point.x - projectedX, point.y - projectedY);
+};
+
+const isPointNearLine = (
+  point: Point,
+  start: Point,
+  end: Point,
+  tolerance = 8
+) => distancePointToSegment(point, start, end) <= tolerance;
+
+const isPointNearFreeDraw = (point: Point, points: Point[], tolerance = 8) => {
+  if (points.length === 0) return false;
+  if (points.length === 1) {
+    return Math.hypot(point.x - points[0].x, point.y - points[0].y) <= tolerance;
+  }
+
+  for (let i = 0; i < points.length - 1; i += 1) {
+    if (isPointNearLine(point, points[i], points[i + 1], tolerance)) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+const estimateTextBounds = (
+  text: string,
+  x: number,
+  y: number,
+  fontSize: number,
+  textAlign: "left" | "center" | "right"
+) => {
+  const width = Math.max(fontSize * 0.6, text.length * fontSize * 0.6);
+  const height = fontSize * 1.2;
+  const alignedX =
+    textAlign === "center" ? x - width / 2 : textAlign === "right" ? x - width : x;
+
+  return {
+    x: alignedX,
+    y: y - fontSize,
+    w: width,
+    h: height,
+  };
+};
+
 type ShapesStateLike = {
   shapes: {
     ids: string[];
@@ -251,7 +312,12 @@ const CanvasWorkspace = () => {
     if (tool === "select") {
       // Check if clicked on a shape — select it; otherwise clear selection
       const clickedShape = [...shapes].reverse().find((shape) => {
-        if ("x" in shape && "w" in shape) {
+        if (
+          shape.type === "rect" ||
+          shape.type === "frame" ||
+          shape.type === "ellipse" ||
+          shape.type === "generatedui"
+        ) {
           return (
             point.x >= shape.x &&
             point.x <= shape.x + shape.w &&
@@ -259,6 +325,37 @@ const CanvasWorkspace = () => {
             point.y <= shape.y + shape.h
           );
         }
+
+        if (shape.type === "line" || shape.type === "arrow") {
+          return isPointNearLine(
+            point,
+            { x: shape.startX, y: shape.startY },
+            { x: shape.endX, y: shape.endY },
+            Math.max(8, shape.strokeWidth + 4)
+          );
+        }
+
+        if (shape.type === "freedraw") {
+          return isPointNearFreeDraw(point, shape.points, Math.max(8, shape.strokeWidth + 4));
+        }
+
+        if (shape.type === "text") {
+          const bounds = estimateTextBounds(
+            shape.text,
+            shape.x,
+            shape.y,
+            shape.fontSize,
+            shape.textAlign
+          );
+
+          return (
+            point.x >= bounds.x &&
+            point.x <= bounds.x + bounds.w &&
+            point.y >= bounds.y &&
+            point.y <= bounds.y + bounds.h
+          );
+        }
+
         return false;
       });
       if (clickedShape) {
@@ -446,72 +543,141 @@ const CanvasWorkspace = () => {
         );
       case "line":
         return (
-          <line
-            key={shape.id}
-            x1={shape.startX}
-            y1={shape.startY}
-            x2={shape.endX}
-            y2={shape.endY}
-            stroke={shape.stroke}
-            strokeWidth={shape.strokeWidth}
-            strokeLinecap="round"
-          />
+          <g key={shape.id}>
+            <line
+              x1={shape.startX}
+              y1={shape.startY}
+              x2={shape.endX}
+              y2={shape.endY}
+              stroke={shape.stroke}
+              strokeWidth={shape.strokeWidth}
+              strokeLinecap="round"
+            />
+            {isSelected && (
+              <line
+                x1={shape.startX}
+                y1={shape.startY}
+                x2={shape.endX}
+                y2={shape.endY}
+                fill="none"
+                stroke="#3b82f6"
+                strokeWidth={Math.max(shape.strokeWidth + 4, 6)}
+                strokeLinecap="round"
+                strokeDasharray="6 4"
+                pointerEvents="none"
+              />
+            )}
+          </g>
         );
       case "arrow":
         return (
-          <line
-            key={shape.id}
-            x1={shape.startX}
-            y1={shape.startY}
-            x2={shape.endX}
-            y2={shape.endY}
-            stroke={shape.stroke}
-            strokeWidth={shape.strokeWidth}
-            strokeLinecap="round"
-            markerEnd="url(#arrowhead)"
-          />
+          <g key={shape.id}>
+            <line
+              x1={shape.startX}
+              y1={shape.startY}
+              x2={shape.endX}
+              y2={shape.endY}
+              stroke={shape.stroke}
+              strokeWidth={shape.strokeWidth}
+              strokeLinecap="round"
+              markerEnd="url(#arrowhead)"
+            />
+            {isSelected && (
+              <line
+                x1={shape.startX}
+                y1={shape.startY}
+                x2={shape.endX}
+                y2={shape.endY}
+                fill="none"
+                stroke="#3b82f6"
+                strokeWidth={Math.max(shape.strokeWidth + 4, 6)}
+                strokeLinecap="round"
+                strokeDasharray="6 4"
+                markerEnd="url(#arrowhead-selection)"
+                pointerEvents="none"
+              />
+            )}
+          </g>
         );
       case "freedraw":
         return (
-          <polyline
-            key={shape.id}
-            points={shape.points.map((p) => `${p.x},${p.y}`).join(" ")}
-            fill="none"
-            stroke={shape.stroke}
-            strokeWidth={shape.strokeWidth}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+          <g key={shape.id}>
+            <polyline
+              points={shape.points.map((p) => `${p.x},${p.y}`).join(" ")}
+              fill="none"
+              stroke={shape.stroke}
+              strokeWidth={shape.strokeWidth}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            {isSelected && (
+              <polyline
+                points={shape.points.map((p) => `${p.x},${p.y}`).join(" ")}
+                fill="none"
+                stroke="#3b82f6"
+                strokeWidth={Math.max(shape.strokeWidth + 4, 6)}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeDasharray="6 4"
+                pointerEvents="none"
+              />
+            )}
+          </g>
         );
-      case "text":
+      case "text": {
+        const textBounds = estimateTextBounds(
+          shape.text,
+          shape.x,
+          shape.y,
+          shape.fontSize,
+          shape.textAlign
+        );
+
         return (
-          <text
-            key={shape.id}
-            x={shape.x}
-            y={shape.y}
-            fill={shape.fill ?? "#fff"}
-            fontSize={shape.fontSize}
-            fontFamily={shape.fontFamily}
-            fontWeight={shape.fontWeight}
-            fontStyle={shape.fontStyle}
-            textAnchor={shape.textAlign === "center" ? "middle" : shape.textAlign === "right" ? "end" : "start"}
-          >
-            {shape.text}
-          </text>
+          <g key={shape.id}>
+            <text
+              x={shape.x}
+              y={shape.y}
+              fill={shape.fill ?? "#fff"}
+              fontSize={shape.fontSize}
+              fontFamily={shape.fontFamily}
+              fontWeight={shape.fontWeight}
+              fontStyle={shape.fontStyle}
+              textAnchor={shape.textAlign === "center" ? "middle" : shape.textAlign === "right" ? "end" : "start"}
+            >
+              {shape.text}
+            </text>
+            {isSelected && (
+              <rect
+                x={textBounds.x - 3}
+                y={textBounds.y - 3}
+                width={textBounds.w + 6}
+                height={textBounds.h + 6}
+                fill="none"
+                stroke="#3b82f6"
+                strokeWidth={1.5}
+                strokeDasharray="4 3"
+                pointerEvents="none"
+              />
+            )}
+          </g>
         );
+      }
       case "generatedui":
         return (
-          <rect
-            key={shape.id}
-            x={shape.x}
-            y={shape.y}
-            width={shape.w}
-            height={shape.h}
-            fill="rgba(255,255,255,0.08)"
-            stroke="rgba(255,255,255,0.2)"
-            strokeWidth={1}
-            rx={8}
-          />
+          <g key={shape.id}>
+            <rect
+              x={shape.x}
+              y={shape.y}
+              width={shape.w}
+              height={shape.h}
+              fill="rgba(255,255,255,0.08)"
+              stroke="rgba(255,255,255,0.2)"
+              strokeWidth={1}
+              rx={8}
+            />
+            {selectionOutline}
+          </g>
         );
       default:
         return null;
@@ -726,6 +892,16 @@ const CanvasWorkspace = () => {
               orient="auto"
             >
               <polygon points="0 0, 10 3.5, 0 7" fill="#ffffff" />
+            </marker>
+            <marker
+              id="arrowhead-selection"
+              markerWidth="10"
+              markerHeight="7"
+              refX="10"
+              refY="3.5"
+              orient="auto"
+            >
+              <polygon points="0 0, 10 3.5, 0 7" fill="#3b82f6" />
             </marker>
           </defs>
           {shapes
