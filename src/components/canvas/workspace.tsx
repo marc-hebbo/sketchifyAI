@@ -15,6 +15,7 @@ import {
   Loader2,
   Download,
   ExternalLink,
+  Layers,
 } from "lucide-react";
 import {
   addArrow,
@@ -34,6 +35,7 @@ import {
   clearSelection,
 } from "@/redux/slice/shapes";
 import ColorPicker from "@/components/canvas/color-picker";
+import LayersPanel from "@/components/canvas/layers-panel";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -108,6 +110,7 @@ const CanvasWorkspace = () => {
   const [showBriefDialog, setShowBriefDialog] = useState(false);
   const [briefInput, setBriefInput] = useState("");
   const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [showLayersPanel, setShowLayersPanel] = useState(false);
   const user = useAppSelector((state) => state.profile.user);
 
   const captureCanvasAsImage = useCallback(async (): Promise<string> => {
@@ -612,6 +615,19 @@ const CanvasWorkspace = () => {
 
         <div className="mt-auto flex flex-col gap-2">
           <Button
+            variant="ghost"
+            className={cn(
+              "h-10 w-10 rounded-xl border",
+              showLayersPanel
+                ? "border-white/40 bg-white/10"
+                : "border-transparent hover:bg-white/5"
+            )}
+            onClick={() => setShowLayersPanel((v) => !v)}
+            aria-label="Toggle layers panel"
+          >
+            <Layers className="h-4 w-4" />
+          </Button>
+          <Button
             variant="default"
             className="h-10 w-10 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500"
             onClick={handleGenerateClick}
@@ -678,6 +694,19 @@ const CanvasWorkspace = () => {
           </div>
           <div className="flex items-center gap-1 rounded-full border border-white/10 bg-black/40 p-1 backdrop-blur w-fit">
             <ColorPicker />
+            <Button
+              variant="ghost"
+              className={cn(
+                "h-9 w-9 rounded-full border",
+                showLayersPanel
+                  ? "border-white/40 bg-white/10"
+                  : "border-transparent hover:bg-white/5"
+              )}
+              onClick={() => setShowLayersPanel((v) => !v)}
+              aria-label="Toggle layers panel"
+            >
+              <Layers className="h-4 w-4" />
+            </Button>
           </div>
         </div>
         <svg
@@ -699,7 +728,9 @@ const CanvasWorkspace = () => {
               <polygon points="0 0, 10 3.5, 0 7" fill="#ffffff" />
             </marker>
           </defs>
-          {shapes.map(renderShape)}
+          {shapes
+            .filter((s) => s.visible !== false)
+            .map(renderShape)}
           {renderDraft()}
         </svg>
 
@@ -719,6 +750,11 @@ const CanvasWorkspace = () => {
             </div>
           </div>
         )}
+
+        <LayersPanel
+          open={showLayersPanel}
+          onClose={() => setShowLayersPanel(false)}
+        />
       </div>
 
       {/* Brief Input Dialog */}

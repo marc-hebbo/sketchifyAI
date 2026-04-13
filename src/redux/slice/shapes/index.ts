@@ -23,6 +23,8 @@ export interface BaseShape {
   stroke: string;
   strokeWidth: number;
   fill?: string | null;
+  visible?: boolean;
+  name?: string;
 }
 export interface FrameShape extends BaseShape {
   type: "frame";
@@ -410,6 +412,44 @@ const shapesSlice = createSlice({
       if (ids.length) shapesAdapter.removeMany(state.shapes, ids);
       state.selected = {};
     },
+
+    toggleShapeVisibility(state, action: PayloadAction<string>) {
+      const shape = state.shapes.entities[action.payload];
+      if (shape) {
+        const current = shape.visible ?? true;
+        shapesAdapter.updateOne(state.shapes, {
+          id: action.payload,
+          changes: { visible: !current },
+        });
+      }
+    },
+    renameShape(
+      state,
+      action: PayloadAction<{ id: string; name: string }>
+    ) {
+      shapesAdapter.updateOne(state.shapes, {
+        id: action.payload.id,
+        changes: { name: action.payload.name },
+      });
+    },
+    moveShapeOrder(
+      state,
+      action: PayloadAction<{ id: string; direction: "up" | "down" }>
+    ) {
+      const ids = state.shapes.ids as string[];
+      const idx = ids.indexOf(action.payload.id);
+      if (idx === -1) return;
+      const swapIdx =
+        action.payload.direction === "up" ? idx + 1 : idx - 1;
+      if (swapIdx < 0 || swapIdx >= ids.length) return;
+      // Swap positions in the ids array
+      const newIds = [...ids];
+      [newIds[idx], newIds[swapIdx]] = [newIds[swapIdx], newIds[idx]];
+      // Rebuild entity state with new order
+      const entities = state.shapes.entities;
+      state.shapes.ids = newIds;
+      state.shapes.entities = entities;
+    },
     loadProject(
       state,
       action: PayloadAction<{
@@ -448,6 +488,9 @@ export const {
   clearSelection,
   selectAll,
   deleteSelected,
+  toggleShapeVisibility,
+  renameShape,
+  moveShapeOrder,
   loadProject,
 } = shapesSlice.actions;
 
