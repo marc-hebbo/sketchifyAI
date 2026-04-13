@@ -249,14 +249,33 @@ const CanvasWorkspace = () => {
     if (e.button !== 0) return;
     const point = toLocalPoint(e);
     if (tool === "select") {
+      const HIT = 8; // px tolerance for thin shapes
       // Check if clicked on a shape — select it; otherwise clear selection
       const clickedShape = [...shapes].reverse().find((shape) => {
+        // Rect-like shapes (rect, ellipse, frame, generatedui)
         if ("x" in shape && "w" in shape) {
           return (
             point.x >= shape.x &&
             point.x <= shape.x + shape.w &&
             point.y >= shape.y &&
             point.y <= shape.y + shape.h
+          );
+        }
+        // Line / Arrow
+        if ("startX" in shape && "endX" in shape) {
+          const dx = shape.endX - shape.startX;
+          const dy = shape.endY - shape.startY;
+          const lenSq = dx * dx + dy * dy;
+          if (lenSq === 0) return Math.hypot(point.x - shape.startX, point.y - shape.startY) <= HIT;
+          const t = Math.max(0, Math.min(1, ((point.x - shape.startX) * dx + (point.y - shape.startY) * dy) / lenSq));
+          const projX = shape.startX + t * dx;
+          const projY = shape.startY + t * dy;
+          return Math.hypot(point.x - projX, point.y - projY) <= HIT;
+        }
+        // Freedraw
+        if ("points" in shape && Array.isArray(shape.points)) {
+          return shape.points.some(
+            (p) => Math.hypot(point.x - p.x, point.y - p.y) <= HIT
           );
         }
         return false;
@@ -336,7 +355,7 @@ const CanvasWorkspace = () => {
     }
     if (draft.type === "frame") {
       const { x, y, w, h } = normalizeRect(start, end);
-      dispatch(addFrame({ x, y, w, h }));
+      dispatch(addFrame({ x, y, w, h, fill: currentFill }));
       return;
     }
     if (draft.type === "line") {
@@ -457,20 +476,35 @@ const CanvasWorkspace = () => {
             strokeLinecap="round"
           />
         );
-      case "arrow":
+      case "arrow": {
+        const markerId = `arrowhead-${shape.id}`;
         return (
-          <line
-            key={shape.id}
-            x1={shape.startX}
-            y1={shape.startY}
-            x2={shape.endX}
-            y2={shape.endY}
-            stroke={shape.stroke}
-            strokeWidth={shape.strokeWidth}
-            strokeLinecap="round"
-            markerEnd="url(#arrowhead)"
-          />
+          <g key={shape.id}>
+            <defs>
+              <marker
+                id={markerId}
+                markerWidth="10"
+                markerHeight="7"
+                refX="10"
+                refY="3.5"
+                orient="auto"
+              >
+                <polygon points="0 0, 10 3.5, 0 7" fill={shape.stroke} />
+              </marker>
+            </defs>
+            <line
+              x1={shape.startX}
+              y1={shape.startY}
+              x2={shape.endX}
+              y2={shape.endY}
+              stroke={shape.stroke}
+              strokeWidth={shape.strokeWidth}
+              strokeLinecap="round"
+              markerEnd={`url(#${markerId})`}
+            />
+          </g>
         );
+      }
       case "freedraw":
         return (
           <polyline
@@ -548,7 +582,7 @@ const CanvasWorkspace = () => {
           stroke={draftStroke}
           strokeWidth={2}
           strokeLinecap="round"
-          markerEnd={draft.type === "arrow" ? "url(#arrowhead)" : undefined}
+          markerEnd={draft.type === "arrow" ? "url(#arrowhead-draft)" : undefined}
           opacity={0.7}
         />
       );
@@ -576,7 +610,7 @@ const CanvasWorkspace = () => {
         y={y}
         width={w}
         height={h}
-        fill={draft.type === "frame" ? "rgba(255,255,255,0.05)" : draftFill}
+        fill={draftFill || (draft.type === "frame" ? "rgba(255,255,255,0.05)" : "transparent")}
         stroke={draft.type === "frame" ? "transparent" : draftStroke}
         strokeWidth={2}
         rx={draft.type === "frame" ? 12 : 4}
@@ -718,14 +752,14 @@ const CanvasWorkspace = () => {
         >
           <defs>
             <marker
-              id="arrowhead"
+              id="arrowhead-draft"
               markerWidth="10"
               markerHeight="7"
               refX="10"
               refY="3.5"
               orient="auto"
             >
-              <polygon points="0 0, 10 3.5, 0 7" fill="#ffffff" />
+              <polygon points="0 0, 10 3.5, 0 7" fill={currentStroke || "#ffffff"} />
             </marker>
           </defs>
           {shapes
