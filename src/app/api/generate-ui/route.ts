@@ -118,21 +118,27 @@ export async function POST(request: Request) {
     const moderation = await moderateContent(brief, image);
     
     if (moderation.isInappropriate) {
-      console.warn("Inappropriate content blocked:", moderation.reason);
+      console.warn("Inappropriate content blocked:", moderation.reason, moderation.summary);
       return NextResponse.json(
-        { error: `Content restricted: ${moderation.reason || "Inappropriate content detected."}` },
+        { 
+          error: `Content restricted: ${moderation.summary || "Inappropriate content detected."}`,
+          reason: moderation.reason 
+        },
         { status: 400 }
       );
     }
 
+    // Use the cleaned summary if provided, otherwise use original brief
+    const finalPrompt = moderation.summary || brief;
+
     // Generate image using sketch as reference
     console.log("Generating with Recraft.ai image-to-image...");
-    console.log("Brief:", brief || "(none provided)");
+    console.log("Prompt:", finalPrompt || "(none provided)");
 
-    const imageUrl = await generateWithRecraft(image, brief);
+    const imageUrl = await generateWithRecraft(image, finalPrompt);
     console.log("Generated image URL:", imageUrl);
 
-    const usedPrompt = brief?.trim() || "Transformed from sketch";
+    const usedPrompt = finalPrompt?.trim() || "Transformed from sketch";
 
     return NextResponse.json({
       imageUrl,
