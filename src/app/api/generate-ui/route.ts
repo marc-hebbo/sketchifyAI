@@ -9,9 +9,44 @@ interface RecraftResponse {
   error?: { message: string };
 }
 
+interface CanvasColors {
+  strokeColors?: string[];
+  fillColors?: string[];
+}
+
 interface GenerateRequest {
   image?: string;
   brief?: string;
+  colors?: CanvasColors;
+}
+
+/**
+ * Build a color-aware section for the prompt based on colors used in the sketch
+ */
+function buildColorContext(colors?: CanvasColors): string {
+  if (!colors) return "";
+
+  const parts: string[] = [];
+  const allColors = [
+    ...(colors.fillColors ?? []),
+    ...(colors.strokeColors ?? []),
+  ];
+
+  // Deduplicate and filter out pure white/black defaults
+  const meaningful = [...new Set(allColors)].filter(
+    (c) => !["#ffffff", "#fff", "#000000", "#000", "#ffff"].includes(c.toLowerCase())
+  );
+
+  if (meaningful.length === 0) return "";
+
+  parts.push(
+    `The sketch uses these colors: ${meaningful.join(", ")}.`
+  );
+  parts.push(
+    "Preserve and incorporate these exact colors as the primary color palette in the generated image."
+  );
+
+  return parts.join(" ");
 }
 
 /**
@@ -39,16 +74,22 @@ function base64ToBlob(dataUri: string): Blob {
  */
 async function generateWithRecraft(
   imageDataUri: string,
-  brief?: string
+  brief?: string,
+  colors?: CanvasColors
 ): Promise<string> {
   if (!RECRAFT_API_KEY) {
     throw new Error("Missing RECRAFT_API_KEY in environment.");
   }
 
-  // Build prompt from user's brief
-  const prompt = brief?.trim()
-    ? `${brief}. High quality, detailed, professional rendering.`
-    : "Transform this sketch into a polished, detailed image. High quality, professional rendering.";
+  const colorContext = buildColorContext(colors);
+
+  // Build prompt from user's brief + color context
+  const promptParts: string[] = [];
+  if (brief?.trim()) promptParts.push(brief.trim());
+  if (colorContext) promptParts.push(colorContext);
+  promptParts.push("High quality, detailed, professional rendering.");
+
+  const prompt = promptParts.join(". ");
 
   // Convert base64 to blob for multipart upload
   const imageBlob = base64ToBlob(imageDataUri);
@@ -96,7 +137,7 @@ export async function POST(request: Request) {
     }
 
     const payload: GenerateRequest = await request.json();
-    const { image, brief } = payload;
+    const { image, brief, colors } = payload;
 
     if (!image || typeof image !== "string") {
       return NextResponse.json(
@@ -133,9 +174,10 @@ export async function POST(request: Request) {
 
     // Generate image using sketch as reference
     console.log("Generating with Recraft.ai image-to-image...");
-    console.log("Prompt:", finalPrompt || "(none provided)");
+    console.log("Brief:", brief || "(none provided)");
+    console.log("Colors:", colors ? JSON.stringify(colors) : "(none)");
 
-    const imageUrl = await generateWithRecraft(image, finalPrompt);
+    const imageUrl = await generateWithRecraft(image, brief, colors);
     console.log("Generated image URL:", imageUrl);
 
     const usedPrompt = finalPrompt?.trim() || "Transformed from sketch";

@@ -15,6 +15,7 @@ import {
   Loader2,
   Download,
   ExternalLink,
+  Layers,
 } from "lucide-react";
 import {
   addArrow,
@@ -28,7 +29,13 @@ import {
   setTool,
   Tool,
   Shape,
+  updateShape,
+  selectShape,
+  deselectShape,
+  clearSelection,
 } from "@/redux/slice/shapes";
+import ColorPicker from "@/components/canvas/color-picker";
+import LayersPanel from "@/components/canvas/layers-panel";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -88,6 +95,10 @@ const CanvasWorkspace = () => {
   const shapesState = useAppSelector((state) => state.shapes);
   const tool = shapesState.tool;
   const shapes = useMemo(() => shapesFromState(shapesState), [shapesState]);
+  const currentStroke = shapesState.currentStroke;
+  const currentFill = shapesState.currentFill;
+  const selected = shapesState.selected;
+  const selectedIds = useMemo(() => Object.keys(selected), [selected]);
 
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [draft, setDraft] = useState<DraftShape | null>(null);
@@ -99,6 +110,7 @@ const CanvasWorkspace = () => {
   const [showBriefDialog, setShowBriefDialog] = useState(false);
   const [briefInput, setBriefInput] = useState("");
   const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const [showLayersPanel, setShowLayersPanel] = useState(false);
   const user = useAppSelector((state) => state.profile.user);
 
   const captureCanvasAsImage = useCallback(async (): Promise<string> => {
@@ -170,6 +182,21 @@ const CanvasWorkspace = () => {
     setShowBriefDialog(true);
   }, []);
 
+  // Extract unique colors used in the canvas shapes
+  const getCanvasColors = useCallback(() => {
+    const strokes = new Set<string>();
+    const fills = new Set<string>();
+    shapes.forEach((s) => {
+      if (s.stroke && s.stroke !== "transparent") strokes.add(s.stroke);
+      if (s.fill && s.fill !== "transparent" && s.fill !== "none")
+        fills.add(s.fill);
+    });
+    return {
+      strokeColors: [...strokes],
+      fillColors: [...fills],
+    };
+  }, [shapes]);
+
   // Submits the brief and generates the image from sketch
   const handleSubmitBrief = useCallback(async (brief: string) => {
     setShowBriefDialog(false);
@@ -178,11 +205,12 @@ const CanvasWorkspace = () => {
     try {
       // Capture the sketch from canvas
       const imageData = await captureCanvasAsImage();
+      const colors = getCanvasColors();
 
       const response = await fetch("/api/generate-ui", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: imageData, brief }),
+        body: JSON.stringify({ image: imageData, brief, colors }),
       });
 
       const data = await response.json();
@@ -236,10 +264,55 @@ const CanvasWorkspace = () => {
   const handlePointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
     const point = toLocalPoint(e);
-    if (tool === "select") return;
+    if (tool === "select") {
+      const HIT = 8; // px tolerance for thin shapes
+      // Check if clicked on a shape — select it; otherwise clear selection
+      const clickedShape = [...shapes].reverse().find((shape) => {
+        // Rect-like shapes (rect, ellipse, frame, generatedui)
+        if ("x" in shape && "w" in shape) {
+          return (
+            point.x >= shape.x &&
+            point.x <= shape.x + shape.w &&
+            point.y >= shape.y &&
+            point.y <= shape.y + shape.h
+          );
+        }
+        // Line / Arrow
+        if ("startX" in shape && "endX" in shape) {
+          const dx = shape.endX - shape.startX;
+          const dy = shape.endY - shape.startY;
+          const lenSq = dx * dx + dy * dy;
+          if (lenSq === 0) return Math.hypot(point.x - shape.startX, point.y - shape.startY) <= HIT;
+          const t = Math.max(0, Math.min(1, ((point.x - shape.startX) * dx + (point.y - shape.startY) * dy) / lenSq));
+          const projX = shape.startX + t * dx;
+          const projY = shape.startY + t * dy;
+          return Math.hypot(point.x - projX, point.y - projY) <= HIT;
+        }
+        // Freedraw
+        if ("points" in shape && Array.isArray(shape.points)) {
+          return shape.points.some(
+            (p) => Math.hypot(point.x - p.x, point.y - p.y) <= HIT
+          );
+        }
+        return false;
+      });
+      if (clickedShape) {
+        if (!e.shiftKey) dispatch(clearSelection());
+        dispatch(selectShape(clickedShape.id));
+      } else {
+        dispatch(clearSelection());
+      }
+      return;
+    }
 
     if (tool === "text") {
-      dispatch(addText({ x: point.x, y: point.y }));
+      dispatch(
+        addText({
+          x: point.x,
+          y: point.y,
+          fill: currentFill ?? currentStroke,
+        })
+      );
       return;
     }
 
@@ -278,25 +351,27 @@ const CanvasWorkspace = () => {
   const finalizeDraft = () => {
     if (!draft) return;
 
+    const colors = { stroke: currentStroke, fill: currentFill };
+
     if (draft.type === "freedraw") {
-      dispatch(addFreeDrawShape({ points: draft.points }));
+      dispatch(addFreeDrawShape({ points: draft.points, ...colors }));
       return;
     }
 
     const { start, end } = draft;
     if (draft.type === "rect") {
       const { x, y, w, h } = normalizeRect(start, end);
-      dispatch(addRect({ x, y, w, h }));
+      dispatch(addRect({ x, y, w, h, ...colors }));
       return;
     }
     if (draft.type === "ellipse") {
       const { x, y, w, h } = normalizeRect(start, end);
-      dispatch(addEllipse({ x, y, w, h }));
+      dispatch(addEllipse({ x, y, w, h, ...colors }));
       return;
     }
     if (draft.type === "frame") {
       const { x, y, w, h } = normalizeRect(start, end);
-      dispatch(addFrame({ x, y, w, h }));
+      dispatch(addFrame({ x, y, w, h, fill: currentFill }));
       return;
     }
     if (draft.type === "line") {
@@ -306,6 +381,7 @@ const CanvasWorkspace = () => {
           startY: start.y,
           endX: end.x,
           endY: end.y,
+          ...colors,
         })
       );
       return;
@@ -317,6 +393,7 @@ const CanvasWorkspace = () => {
           startY: start.y,
           endX: end.x,
           endY: end.y,
+          ...colors,
         })
       );
     }
@@ -335,34 +412,72 @@ const CanvasWorkspace = () => {
   };
 
   const renderShape = (shape: Shape) => {
+    const isSelected = selected[shape.id];
+    const selectionOutline = isSelected ? (
+      <>
+        {"x" in shape && "w" in shape && (
+          shape.type === "ellipse" ? (
+            <ellipse
+              cx={shape.x + shape.w / 2}
+              cy={shape.y + shape.h / 2}
+              rx={Math.max(1, shape.w / 2) + 3}
+              ry={Math.max(1, shape.h / 2) + 3}
+              fill="none"
+              stroke="#3b82f6"
+              strokeWidth={1.5}
+              strokeDasharray="4 3"
+              pointerEvents="none"
+            />
+          ) : (
+            <rect
+              x={shape.x - 3}
+              y={shape.y - 3}
+              width={shape.w + 6}
+              height={shape.h + 6}
+              fill="none"
+              stroke="#3b82f6"
+              strokeWidth={1.5}
+              strokeDasharray="4 3"
+              rx={shape.type === "frame" ? 14 : 6}
+              pointerEvents="none"
+            />
+          )
+        )}
+      </>
+    ) : null;
+
     switch (shape.type) {
       case "frame":
       case "rect":
         return (
-          <rect
-            key={shape.id}
-            x={shape.x}
-            y={shape.y}
-            width={shape.w}
-            height={shape.h}
-            fill={shape.fill ?? "transparent"}
-            stroke={shape.stroke}
-            strokeWidth={shape.strokeWidth}
-            rx={shape.type === "frame" ? 12 : 4}
-          />
+          <g key={shape.id}>
+            <rect
+              x={shape.x}
+              y={shape.y}
+              width={shape.w}
+              height={shape.h}
+              fill={shape.fill ?? "transparent"}
+              stroke={shape.stroke}
+              strokeWidth={shape.strokeWidth}
+              rx={shape.type === "frame" ? 12 : 4}
+            />
+            {selectionOutline}
+          </g>
         );
       case "ellipse":
         return (
-          <ellipse
-            key={shape.id}
-            cx={shape.x + shape.w / 2}
-            cy={shape.y + shape.h / 2}
-            rx={Math.max(1, shape.w / 2)}
-            ry={Math.max(1, shape.h / 2)}
-            fill={shape.fill ?? "transparent"}
-            stroke={shape.stroke}
-            strokeWidth={shape.strokeWidth}
-          />
+          <g key={shape.id}>
+            <ellipse
+              cx={shape.x + shape.w / 2}
+              cy={shape.y + shape.h / 2}
+              rx={Math.max(1, shape.w / 2)}
+              ry={Math.max(1, shape.h / 2)}
+              fill={shape.fill ?? "transparent"}
+              stroke={shape.stroke}
+              strokeWidth={shape.strokeWidth}
+            />
+            {selectionOutline}
+          </g>
         );
       case "line":
         return (
@@ -377,20 +492,37 @@ const CanvasWorkspace = () => {
             strokeLinecap="round"
           />
         );
-      case "arrow":
+      case "arrow": {
+        const safeColor = shape.stroke.replace(/[^a-fA-F0-9]/g, "");
+        const markerId = `ah-${shape.id}-${safeColor}`;
         return (
-          <line
-            key={shape.id}
-            x1={shape.startX}
-            y1={shape.startY}
-            x2={shape.endX}
-            y2={shape.endY}
-            stroke={shape.stroke}
-            strokeWidth={shape.strokeWidth}
-            strokeLinecap="round"
-            markerEnd="url(#arrowhead)"
-          />
+          <g key={shape.id}>
+            <defs>
+              <marker
+                id={markerId}
+                markerWidth="10"
+                markerHeight="7"
+                refX="10"
+                refY="3.5"
+                orient="auto"
+                markerUnits="strokeWidth"
+              >
+                <polygon points="0 0, 10 3.5, 0 7" fill={shape.stroke} />
+              </marker>
+            </defs>
+            <line
+              x1={shape.startX}
+              y1={shape.startY}
+              x2={shape.endX}
+              y2={shape.endY}
+              stroke={shape.stroke}
+              strokeWidth={shape.strokeWidth}
+              strokeLinecap="round"
+              markerEnd={`url(#${markerId})`}
+            />
+          </g>
         );
+      }
       case "freedraw":
         return (
           <polyline
@@ -440,15 +572,19 @@ const CanvasWorkspace = () => {
 
   const renderDraft = () => {
     if (!draft) return null;
+    const draftStroke = currentStroke || "rgba(255,255,255,0.6)";
+    const draftFill = currentFill ?? "transparent";
+
     if (draft.type === "freedraw") {
       return (
         <polyline
           points={draft.points.map((p) => `${p.x},${p.y}`).join(" ")}
           fill="none"
-          stroke="rgba(255,255,255,0.6)"
+          stroke={draftStroke}
           strokeWidth={2}
           strokeLinecap="round"
           strokeLinejoin="round"
+          opacity={0.7}
         />
       );
     }
@@ -461,10 +597,11 @@ const CanvasWorkspace = () => {
           y1={start.y}
           x2={end.x}
           y2={end.y}
-          stroke="rgba(255,255,255,0.6)"
+          stroke={draftStroke}
           strokeWidth={2}
           strokeLinecap="round"
-          markerEnd={draft.type === "arrow" ? "url(#arrowhead)" : undefined}
+          markerEnd={draft.type === "arrow" ? "url(#arrowhead-draft)" : undefined}
+          opacity={0.7}
         />
       );
     }
@@ -477,9 +614,10 @@ const CanvasWorkspace = () => {
           cy={y + h / 2}
           rx={Math.max(1, w / 2)}
           ry={Math.max(1, h / 2)}
-          fill="rgba(255,255,255,0.08)"
-          stroke="rgba(255,255,255,0.6)"
+          fill={draftFill}
+          stroke={draftStroke}
           strokeWidth={2}
+          opacity={0.7}
         />
       );
     }
@@ -490,10 +628,11 @@ const CanvasWorkspace = () => {
         y={y}
         width={w}
         height={h}
-        fill="rgba(255,255,255,0.08)"
-        stroke="rgba(255,255,255,0.6)"
+        fill={draftFill || (draft.type === "frame" ? "rgba(255,255,255,0.05)" : "transparent")}
+        stroke={draft.type === "frame" ? "transparent" : draftStroke}
         strokeWidth={2}
         rx={draft.type === "frame" ? 12 : 4}
+        opacity={0.7}
       />
     );
   };
@@ -523,7 +662,23 @@ const CanvasWorkspace = () => {
           ))}
         </ToggleGroup>
 
+        <div className="my-1 h-px bg-white/10" />
+        <ColorPicker />
+
         <div className="mt-auto flex flex-col gap-2">
+          <Button
+            variant="ghost"
+            className={cn(
+              "h-10 w-10 rounded-xl border",
+              showLayersPanel
+                ? "border-white/40 bg-white/10"
+                : "border-transparent hover:bg-white/5"
+            )}
+            onClick={() => setShowLayersPanel((v) => !v)}
+            aria-label="Toggle layers panel"
+          >
+            <Layers className="h-4 w-4" />
+          </Button>
           <Button
             variant="default"
             className="h-10 w-10 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500"
@@ -548,45 +703,63 @@ const CanvasWorkspace = () => {
 
       <div className="relative flex-1">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.08)_1px,transparent_0)] [background-size:24px_24px]" />
-        <div className="absolute left-3 top-3 z-10 flex items-center gap-2 rounded-full border border-white/10 bg-black/40 p-1 backdrop-blur md:hidden">
-          <ToggleGroup
-            type="single"
-            value={tool}
-            onValueChange={(value) => {
-              if (value) dispatch(setTool(value as Tool));
-            }}
-            className="flex items-center"
-          >
-            {TOOL_ITEMS.map((item) => (
-              <ToggleGroupItem
-                key={item.tool}
-                value={item.tool}
-                aria-label={item.label}
-                className="h-9 w-9 rounded-full border border-transparent data-[state=on]:border-white/40 data-[state=on]:bg-white/10"
-              >
-                {item.icon}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-          <Button
-            variant="default"
-            className="h-9 w-9 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500"
-            onClick={handleGenerateClick}
-            disabled={isGenerating || shapes.length === 0}
-          >
-            {isGenerating ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Sparkles className="h-4 w-4" />
-            )}
-          </Button>
-          <Button
-            variant="secondary"
-            className="h-9 w-9 rounded-full"
-            onClick={() => dispatch(clearAll())}
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
+        <div className="absolute left-3 top-3 z-10 flex flex-col gap-2 md:hidden">
+          <div className="flex items-center gap-2 rounded-full border border-white/10 bg-black/40 p-1 backdrop-blur">
+            <ToggleGroup
+              type="single"
+              value={tool}
+              onValueChange={(value) => {
+                if (value) dispatch(setTool(value as Tool));
+              }}
+              className="flex items-center"
+            >
+              {TOOL_ITEMS.map((item) => (
+                <ToggleGroupItem
+                  key={item.tool}
+                  value={item.tool}
+                  aria-label={item.label}
+                  className="h-9 w-9 rounded-full border border-transparent data-[state=on]:border-white/40 data-[state=on]:bg-white/10"
+                >
+                  {item.icon}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+            <Button
+              variant="default"
+              className="h-9 w-9 rounded-full bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500"
+              onClick={handleGenerateClick}
+              disabled={isGenerating || shapes.length === 0}
+            >
+              {isGenerating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+            </Button>
+            <Button
+              variant="secondary"
+              className="h-9 w-9 rounded-full"
+              onClick={() => dispatch(clearAll())}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="flex items-center gap-1 rounded-full border border-white/10 bg-black/40 p-1 backdrop-blur w-fit">
+            <ColorPicker />
+            <Button
+              variant="ghost"
+              className={cn(
+                "h-9 w-9 rounded-full border",
+                showLayersPanel
+                  ? "border-white/40 bg-white/10"
+                  : "border-transparent hover:bg-white/5"
+              )}
+              onClick={() => setShowLayersPanel((v) => !v)}
+              aria-label="Toggle layers panel"
+            >
+              <Layers className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
         <svg
           ref={svgRef}
@@ -597,17 +770,19 @@ const CanvasWorkspace = () => {
         >
           <defs>
             <marker
-              id="arrowhead"
+              id="arrowhead-draft"
               markerWidth="10"
               markerHeight="7"
               refX="10"
               refY="3.5"
               orient="auto"
             >
-              <polygon points="0 0, 10 3.5, 0 7" fill="#ffffff" />
+              <polygon points="0 0, 10 3.5, 0 7" fill={currentStroke || "#ffffff"} />
             </marker>
           </defs>
-          {shapes.map(renderShape)}
+          {shapes
+            .filter((s) => s.visible !== false)
+            .map(renderShape)}
           {renderDraft()}
         </svg>
 
@@ -627,6 +802,11 @@ const CanvasWorkspace = () => {
             </div>
           </div>
         )}
+
+        <LayersPanel
+          open={showLayersPanel}
+          onClose={() => setShowLayersPanel(false)}
+        />
       </div>
 
       {/* Brief Input Dialog */}
