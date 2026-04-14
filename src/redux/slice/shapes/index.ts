@@ -127,7 +127,7 @@ const initialState: ShapesState = {
   currentFill: null,
 };
 
-const DEFAULTS = { stroke: "#ffff", strokeWidth: 2 as const };
+const DEFAULTS = { stroke: "#ffffff", strokeWidth: 2 as const };
 
 const makeFrame = (p: {
   x: number;

@@ -182,6 +182,21 @@ const CanvasWorkspace = () => {
     setShowBriefDialog(true);
   }, []);
 
+  // Extract unique colors used in the canvas shapes
+  const getCanvasColors = useCallback(() => {
+    const strokes = new Set<string>();
+    const fills = new Set<string>();
+    shapes.forEach((s) => {
+      if (s.stroke && s.stroke !== "transparent") strokes.add(s.stroke);
+      if (s.fill && s.fill !== "transparent" && s.fill !== "none")
+        fills.add(s.fill);
+    });
+    return {
+      strokeColors: [...strokes],
+      fillColors: [...fills],
+    };
+  }, [shapes]);
+
   // Submits the brief and generates the image from sketch
   const handleSubmitBrief = useCallback(async (brief: string) => {
     setShowBriefDialog(false);
@@ -190,11 +205,12 @@ const CanvasWorkspace = () => {
     try {
       // Capture the sketch from canvas
       const imageData = await captureCanvasAsImage();
+      const colors = getCanvasColors();
 
       const response = await fetch("/api/generate-ui", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: imageData, brief }),
+        body: JSON.stringify({ image: imageData, brief, colors }),
       });
 
       const data = await response.json();
@@ -477,7 +493,8 @@ const CanvasWorkspace = () => {
           />
         );
       case "arrow": {
-        const markerId = `arrowhead-${shape.id}`;
+        const safeColor = shape.stroke.replace(/[^a-fA-F0-9]/g, "");
+        const markerId = `ah-${shape.id}-${safeColor}`;
         return (
           <g key={shape.id}>
             <defs>
@@ -488,6 +505,7 @@ const CanvasWorkspace = () => {
                 refX="10"
                 refY="3.5"
                 orient="auto"
+                markerUnits="strokeWidth"
               >
                 <polygon points="0 0, 10 3.5, 0 7" fill={shape.stroke} />
               </marker>
