@@ -154,23 +154,20 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check for inappropriate content using Gemini
+    // Check for inappropriate content using Gemini (Primary Safety Firewall)
     console.log("Moderating content...");
     const moderation = await moderateContent(brief, image);
     
     if (moderation.isInappropriate) {
-      console.warn("Inappropriate content blocked:", moderation.reason, moderation.summary);
+      console.warn("Safety Violation blocked:", moderation.reason, moderation.error);
       return NextResponse.json(
         { 
-          error: `Content restricted: ${moderation.summary || "Inappropriate content detected."}`,
+          error: `${moderation.error || "Safety Violation"}: Content restricted.`,
           reason: moderation.reason 
         },
-        { status: 400 }
+        { status: 403 } // Use 403 Forbidden for safety violations
       );
     }
-
-    // Use the cleaned summary if provided, otherwise use original brief
-    const finalPrompt = moderation.summary || brief;
 
     // Generate image using sketch as reference
     console.log("Generating with Recraft.ai image-to-image...");
@@ -180,7 +177,7 @@ export async function POST(request: Request) {
     const imageUrl = await generateWithRecraft(image, brief, colors);
     console.log("Generated image URL:", imageUrl);
 
-    const usedPrompt = finalPrompt?.trim() || "Transformed from sketch";
+    const usedPrompt = brief?.trim() || "Transformed from sketch";
 
     return NextResponse.json({
       imageUrl,

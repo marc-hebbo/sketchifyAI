@@ -1,5 +1,5 @@
 /**
- * Moderation utility using Gemini API to check for inappropriate content
+ * Moderation utility using Gemini API to act as a Primary Safety Firewall
  */
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -7,33 +7,33 @@ const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 export interface ModerationResult {
   isInappropriate: boolean;
   reason?: string;
-  summary?: string;
+  error?: string;
 }
 
-// Quick keyword check for obviously inappropriate content
+// Quick keyword check for obviously inappropriate content - No-Generation Zone
 const BANNED_KEYWORDS = [
-  "violence", "violent", "gore", "weapon", "gun", "knife", "killing", "murder", "blood",
-  "hate", "harassment", "nudity", "sex", "explicit", "porn", "suicide", "self-harm",
-  "illegal", "drug", "bomb", "explosion", "terrorist", "assault"
+  "bloody", "weapon", "gore", "kill", "murder", "violence", "violent", "gun", "knife",
+  "sexual", "sex", "porn", "explicit", "nudity", "hate", "harassment", "suicide",
+  "self-harm", "illegal", "drug", "bomb", "explosion", "terrorist", "assault"
 ];
 
 /**
  * Checks if the provided text or image is inappropriate using Gemini
- * based on the Safety Moderation Engine guidelines.
+ * acting as the Primary Safety Firewall for the sketch-to-app pipeline.
  */
 export async function moderateContent(
   text?: string,
   imageUri?: string
 ): Promise<ModerationResult> {
-  // 1. Quick local check for obvious violations in text
+  // 1. Quick local scan for restricted keywords and harmful intent in text
   if (text) {
     const lowerText = text.toLowerCase();
     const foundKeyword = BANNED_KEYWORDS.find(keyword => lowerText.includes(keyword));
     if (foundKeyword) {
       return {
         isInappropriate: true,
-        reason: "textual_violation",
-        summary: `Blocked due to restricted keyword: ${foundKeyword}`
+        reason: "RESTRICTED_CONTENT_DETECTED",
+        error: "Safety Violation"
       };
     }
   }
@@ -47,26 +47,28 @@ export async function moderateContent(
     const parts: any[] = [
       {
         text: `System Instruction:
-You are the Safety Moderation Engine for a sketch-to-image application. Your role is to analyze a user's sketch (image) and description (text) simultaneously.
+You are the Primary Safety Firewall for a sketch-to-app pipeline. You sit at the very beginning of the stack. Your only job is to validate the input. If you fail, the entire system is compromised.
 
-Safety Criteria:
-Visual: Block graphic violence, nudity, anatomical sketches, hate symbols, or dehumanizing depictions of individuals.
-Textual: Block profanity, hate speech, sexual innuendo, or descriptions of illegal acts.
-Cross-Check: Block the request if an innocent sketch (e.g., a cylinder) is paired with a suggestive or violent description.
+The Rules:
+No-Generation Zone: If the user description contains violent keywords (bloody, weapons, gore, kill, etc.) or sexual intent, you are legally and logically forbidden from performing any design tasks.
+Contextual Intent: Even if the image is a simple shape (rectangle, circle, sketch), you must judge the intent based on the text. A rectangle + "a bloody scene" = VIOLATION.
+JSON Lock: You are a headless service. You do not talk to humans. You only output structured JSON.
 
-Output Format (Strict):
-You must respond only in JSON format. Do not include prose or explanations outside the JSON block.
+Evaluation Logic:
+Step A: Scan image for restricted visual elements.
+Step B: Scan text for restricted keywords and harmful intent.
+Step C: Determine if the combination is safe.
 
-If Blocked:
-{"status": "rejected", "reason": "visual_violation | textual_violation | combined_violation", "message": "Short explanation here."}
-
-If Safe:
-{"status": "approved", "description_summary": "Cleaned version of user text"}`,
+Response Format:
+IF VIOLATION: Output exactly: {"status": "blocked", "error": "Safety Violation", "reason": "RESTRICTED_CONTENT_DETECTED"}
+IF SAFE: Output exactly: {"status": "safe", "action": "proceed_to_design"}`,
       },
     ];
 
     if (text) {
-      parts.push({ text: `User Description: "${text}"` });
+      parts.push({ text: `Analyze the provided image and this description: "${text}"` });
+    } else {
+      parts.push({ text: `Analyze the provided image.` });
     }
 
     if (imageUri) {
@@ -113,17 +115,16 @@ If Safe:
     try {
       const result = JSON.parse(resultText.replace(/```json\n?|\n?```/g, "").trim());
       
-      if (result.status === "rejected") {
+      if (result.status === "blocked") {
         return {
           isInappropriate: true,
           reason: result.reason,
-          summary: result.message
+          error: result.error
         };
       }
 
       return {
-        isInappropriate: false,
-        summary: result.description_summary
+        isInappropriate: false
       };
     } catch (e) {
       console.error("Failed to parse moderation response:", resultText);
