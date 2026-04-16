@@ -5,11 +5,11 @@ import { usePathname, useSearchParams } from "next/navigation";
 import React from "react";
 import { api } from "../../../convex/_generated/api";
 import { Id } from "../../../convex/_generated/dataModel";
-import { CircleQuestionMark, Hash, LayoutTemplate } from "lucide-react";
+import { CircleQuestionMark, Hash, LayoutTemplate, User } from "lucide-react";
 import { Button } from "../ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { useAppSelector } from "@/redux/store";
 import CreateProject from "../buttons/project";
-import AccountMenu from "@/components/auth/account-menu";
 
 type TabProps = {
   label: string;
@@ -25,17 +25,18 @@ const Navbar = () => {
   //  TODO: add credits logic
   const profileState = useAppSelector((state) => state.profile);
   const me = profileState.user;
+  const session = me?.name || "guest";
 
   // TODO: Fix these urls
   const tabs: TabProps[] = [
     {
       label: "Canvas",
-      href: projectId ? `/canvas?project=${projectId}` : "/canvas",
+      href: `/dashboard/${session}/canvas?project=${projectId}`,
       icon: <Hash className="w-4 h-4" />,
     },
     {
       label: "Style Guide",
-      href: projectId ? `/style-guide?project=${projectId}` : "/style-guide",
+      href: `/dashboard/${session}/style-guide?project=${projectId}`,
       icon: <LayoutTemplate className="w-4 h-4" />,
     },
   ];
@@ -109,7 +110,12 @@ const Navbar = () => {
         >
           <CircleQuestionMark className="size-5 text-white" />
         </Button>
-        <AccountMenu />
+        <Avatar className="size-12 ml-2">
+          <AvatarImage src={me?.image || ""} />
+          <AvatarFallback>
+            <User className="size-5 text-black" />
+          </AvatarFallback>
+        </Avatar>
         {/* TODO: Add autosave and create project */}
         {!hasCanvas && !hasStyleGuide && <CreateProject />}
       </div>

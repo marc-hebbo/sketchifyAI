@@ -13,7 +13,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { useAppDispatch } from "@/redux/store";
+import { setUser } from "@/redux/slice/profile";
 import { toast } from "sonner";
+import { useMutation } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 
 type AuthDialogProps = {
   open: boolean;
@@ -34,6 +38,8 @@ export default function AuthDialog({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const dispatch = useAppDispatch();
+  const ensureUser = useMutation(api.user.ensureUser);
 
   useEffect(() => {
     if (!open) return;
@@ -54,26 +60,50 @@ export default function AuthDialog({
           password,
         });
         if (error) throw error;
-
-        if (data.session?.user) {
+        if (data.user) {
+          const convexUserId = await ensureUser({
+            authUserId: data.user.id,
+            email: data.user.email ?? undefined,
+            image: undefined,
+            name: data.user.email?.split("@")[0] || "user",
+          });
+          dispatch(
+            setUser({
+              id: convexUserId,
+              name: data.user.email?.split("@")[0] || "user",
+              email: data.user.email,
+              image: null,
+            })
+          );
           toast.success("Account created!");
           onOpenChange(false);
           onSuccess();
-        } else {
-          toast.success("Account created. Check your email, then sign in.");
-          setMode("sign-in");
-          setPassword("");
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
         if (error) throw error;
-
-        toast.success("Signed in!");
-        onOpenChange(false);
-        onSuccess();
+        if (data.user) {
+          const convexUserId = await ensureUser({
+            authUserId: data.user.id,
+            email: data.user.email ?? undefined,
+            image: undefined,
+            name: data.user.email?.split("@")[0] || "user",
+          });
+          dispatch(
+            setUser({
+              id: convexUserId,
+              name: data.user.email?.split("@")[0] || "user",
+              email: data.user.email,
+              image: null,
+            })
+          );
+          toast.success("Signed in!");
+          onOpenChange(false);
+          onSuccess();
+        }
       }
     } catch (err: unknown) {
       const message =
@@ -107,7 +137,6 @@ export default function AuthDialog({
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
               required
             />
           </div>
@@ -120,9 +149,6 @@ export default function AuthDialog({
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              autoComplete={
-                mode === "sign-in" ? "current-password" : "new-password"
-              }
               required
               minLength={6}
             />

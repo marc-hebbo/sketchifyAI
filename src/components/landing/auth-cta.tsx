@@ -4,9 +4,7 @@ import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, LogIn, UserPlus } from "lucide-react";
 import AuthDialog from "@/components/auth/auth-dialog";
-import AccountMenu from "@/components/auth/account-menu";
 import { Button } from "@/components/ui/button";
-import { useAppSelector } from "@/redux/store";
 
 type LandingAuthCtaProps = {
   redirectTo?: string;
@@ -18,18 +16,12 @@ export default function LandingAuthCta({
   className,
 }: LandingAuthCtaProps) {
   const router = useRouter();
-  const profileState = useAppSelector((state) => state.profile);
-  const isLoggedIn = Boolean(profileState.user?.id);
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<"sign-in" | "sign-up">("sign-up");
 
   const onSuccess = useCallback(() => {
     router.push(redirectTo);
   }, [router, redirectTo]);
-
-  if (isLoggedIn) {
-    return <AccountMenu />;
-  }
 
   return (
     <>
