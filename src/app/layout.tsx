@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { ConvexClientProvider } from "@/convex/provider";
 import ReduxProvider from "@/redux/provider";
 import Preloader from "@/components/preloader";
+import AuthSessionSync from "@/components/auth/session-sync";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -38,9 +39,11 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <ReduxProvider preloadedState={{}}>
-              <Preloader>
-                {children}
-              </Preloader>
+              <AuthSessionSync>
+                <Preloader>
+                  {children}
+                </Preloader>
+              </AuthSessionSync>
             </ReduxProvider>
             <Toaster />
           </ThemeProvider>

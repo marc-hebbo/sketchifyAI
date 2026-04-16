@@ -52,6 +52,7 @@ export const useProjectCreation = () => {
   const dispatch = useAppDispatch();
   const profileState = useAppSelector((state) => state.profile);
   const user = profileState.user;
+  const authResolved = profileState.authResolved;
   const projectsState = useAppSelector((state) => state.projects);
   const shapesState = useAppSelector((state) => state.shapes);
 
@@ -59,6 +60,11 @@ export const useProjectCreation = () => {
   const convexDeleteProject = useMutation(api.projects.deleteProject);
 
   const createProject = async (name?: string) => {
+    if (!authResolved) {
+      toast.message("Checking your account. Try again in a second.");
+      return;
+    }
+
     dispatch(createProjectStart());
     try {
       const thumbnail = generateGradientThumbnail();
@@ -149,6 +155,6 @@ export const useProjectCreation = () => {
     isCreating: projectsState.isCreating,
     projects: projectsState.projects,
     projectsTotal: projectsState.total,
-    canCreate: true,
+    canCreate: authResolved,
   };
 };
