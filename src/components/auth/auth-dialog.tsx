@@ -47,6 +47,20 @@ export default function AuthDialog({
     setMode(defaultMode);
   }, [open, defaultMode]);
 
+  const continueInDemoMode = () => {
+    dispatch(
+      setUser({
+        id: null,
+        name: email.split("@")[0] || "guest",
+        email,
+        image: null,
+      })
+    );
+    toast.success("Email signup is rate-limited right now. Continuing in demo mode.");
+    onOpenChange(false);
+    onSuccess();
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -108,6 +122,15 @@ export default function AuthDialog({
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Something went wrong";
+
+      if (
+        mode === "sign-up" &&
+        message.toLowerCase().includes("rate limit")
+      ) {
+        continueInDemoMode();
+        return;
+      }
+
       toast.error(message);
     } finally {
       setLoading(false);
