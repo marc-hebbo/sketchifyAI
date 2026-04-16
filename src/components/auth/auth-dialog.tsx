@@ -12,12 +12,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2 } from "lucide-react";
-import { createClient } from "@/utils/supabase/client";
 import { useAppDispatch } from "@/redux/store";
 import { setUser } from "@/redux/slice/profile";
 import { toast } from "sonner";
-import { useMutation } from "convex/react";
-import { api } from "../../../convex/_generated/api";
+import { setStoredSession, upsertStoredAccount } from "@/utils/local-auth";
 
 type AuthDialogProps = {
   open: boolean;
@@ -39,7 +37,6 @@ export default function AuthDialog({
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const dispatch = useAppDispatch();
-  const ensureUser = useMutation(api.user.ensureUser);
 
   useEffect(() => {
     if (!open) return;
@@ -47,90 +44,35 @@ export default function AuthDialog({
     setMode(defaultMode);
   }, [open, defaultMode]);
 
-  const continueInDemoMode = () => {
-    dispatch(
-      setUser({
-        id: null,
-        name: email.split("@")[0] || "guest",
-        email,
-        image: null,
-      })
-    );
-    toast.success("Email signup is rate-limited right now. Continuing in demo mode.");
-    onOpenChange(false);
-    onSuccess();
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
-    const supabase = createClient();
-
     try {
-      if (mode === "sign-up") {
-        const { data, error } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-        if (error) throw error;
-        if (data.user) {
-          const convexUserId = await ensureUser({
-            authUserId: data.user.id,
-            email: data.user.email ?? undefined,
-            image: undefined,
-            name: data.user.email?.split("@")[0] || "user",
-          });
-          dispatch(
-            setUser({
-              id: convexUserId,
-              name: data.user.email?.split("@")[0] || "user",
-              email: data.user.email,
-              image: null,
-            })
-          );
-          toast.success("Account created!");
-          onOpenChange(false);
-          onSuccess();
-        }
-      } else {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        if (data.user) {
-          const convexUserId = await ensureUser({
-            authUserId: data.user.id,
-            email: data.user.email ?? undefined,
-            image: undefined,
-            name: data.user.email?.split("@")[0] || "user",
-          });
-          dispatch(
-            setUser({
-              id: convexUserId,
-              name: data.user.email?.split("@")[0] || "user",
-              email: data.user.email,
-              image: null,
-            })
-          );
-          toast.success("Signed in!");
-          onOpenChange(false);
-          onSuccess();
-        }
+      const account = upsertStoredAccount(email, password);
+      const session = setStoredSession(email);
+
+      if (!account || !session) {
+        throw new Error("Failed to start local account session");
       }
+
+      dispatch(
+        setUser({
+          id: null,
+          name: session.name,
+          email: session.email,
+          image: null,
+        })
+      );
+
+      toast.success(
+        mode === "sign-up" ? "Account created locally!" : "Signed in locally!"
+      );
+      onOpenChange(false);
+      onSuccess();
     } catch (err: unknown) {
       const message =
         err instanceof Error ? err.message : "Something went wrong";
-
-      if (
-        mode === "sign-up" &&
-        message.toLowerCase().includes("rate limit")
-      ) {
-        continueInDemoMode();
-        return;
-      }
-
       toast.error(message);
     } finally {
       setLoading(false);
@@ -146,8 +88,8 @@ export default function AuthDialog({
           </DialogTitle>
           <DialogDescription>
             {mode === "sign-in"
-              ? "Sign in to create and save projects."
-              : "Sign up to get started with SketchifyAI."}
+              ? "Sign in locally to continue with SketchifyAI."
+              : "Create a local account to get started with SketchifyAI."}
           </DialogDescription>
         </DialogHeader>
 
