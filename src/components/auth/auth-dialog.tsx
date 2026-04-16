@@ -16,6 +16,8 @@ import { createClient } from "@/utils/supabase/client";
 import { useAppDispatch } from "@/redux/store";
 import { setUser } from "@/redux/slice/profile";
 import { toast } from "sonner";
+import { useMutation } from "convex/react";
+import { api } from "../../../convex/_generated/api";
 
 type AuthDialogProps = {
   open: boolean;
@@ -37,6 +39,7 @@ export default function AuthDialog({
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const dispatch = useAppDispatch();
+  const ensureUser = useMutation(api.user.ensureUser);
 
   useEffect(() => {
     if (!open) return;
@@ -58,9 +61,15 @@ export default function AuthDialog({
         });
         if (error) throw error;
         if (data.user) {
+          const convexUserId = await ensureUser({
+            authUserId: data.user.id,
+            email: data.user.email ?? undefined,
+            image: undefined,
+            name: data.user.email?.split("@")[0] || "user",
+          });
           dispatch(
             setUser({
-              id: data.user.id,
+              id: convexUserId,
               name: data.user.email?.split("@")[0] || "user",
               email: data.user.email,
               image: null,
@@ -77,9 +86,15 @@ export default function AuthDialog({
         });
         if (error) throw error;
         if (data.user) {
+          const convexUserId = await ensureUser({
+            authUserId: data.user.id,
+            email: data.user.email ?? undefined,
+            image: undefined,
+            name: data.user.email?.split("@")[0] || "user",
+          });
           dispatch(
             setUser({
-              id: data.user.id,
+              id: convexUserId,
               name: data.user.email?.split("@")[0] || "user",
               email: data.user.email,
               image: null,

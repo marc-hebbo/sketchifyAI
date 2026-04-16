@@ -114,8 +114,10 @@ export const useProjectCreation = () => {
       toast.success("Project created successfully");
     } catch (error) {
       console.error("Failed to create project:", error);
-      dispatch(createProjectFailure("Failed to create project"));
-      toast.error("Failed to create project");
+      const message =
+        error instanceof Error ? error.message : "Failed to create project";
+      dispatch(createProjectFailure(message));
+      toast.error(message);
     }
   };
 
