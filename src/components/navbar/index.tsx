@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import React from "react";
-import { CircleQuestionMark, Hash, LayoutTemplate, User } from "lucide-react";
+import { CircleQuestionMark, Hash, User } from "lucide-react";
 import { Button } from "../ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { useAppSelector } from "@/redux/store";
@@ -19,29 +19,19 @@ const Navbar = () => {
   const projectId = params.get("project");
 
   const pathname = usePathname();
-  //  TODO: add credits logic
   const profileState = useAppSelector((state) => state.profile);
   const me = profileState.user;
   const session = me?.name || "guest";
 
-  // TODO: Fix these urls
   const tabs: TabProps[] = [
     {
       label: "Canvas",
       href: `/dashboard/${session}/canvas?project=${projectId}`,
       icon: <Hash className="w-4 h-4" />,
     },
-    {
-      label: "Style Guide",
-      href: `/dashboard/${session}/style-guide?project=${projectId}`,
-      icon: <LayoutTemplate className="w-4 h-4" />,
-    },
   ];
 
-  // TODO: uncomment this when we have a project
-
   const hasCanvas = pathname.includes("canvas");
-  const hasStyleGuide = pathname.includes("style-guide");
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-3 p-6 fixed top-0 left-0 right-0 z-50">
@@ -53,12 +43,11 @@ const Navbar = () => {
           <div className="w-4 h-4 rounded-full bg-white"></div>
         </Link>
 
-        {!hasCanvas ||
-          (!hasStyleGuide && (
-            <div className="lg:inline-block hidden rounded-full text-primary/60 border border-white/[0.12] backdrop-blur-xl bg-white/[0.08] px-4 py-2 text-sm saturate-150">
-              Project / {projectId || "untitled"}
-            </div>
-          ))}
+        {!hasCanvas && (
+          <div className="lg:inline-block hidden rounded-full text-primary/60 border border-white/[0.12] backdrop-blur-xl bg-white/[0.08] px-4 py-2 text-sm saturate-150">
+            Project / {projectId || "untitled"}
+          </div>
+        )}
       </div>
 
       <div className="lg:flex hidden items-center justify-center gap-2">
@@ -91,7 +80,6 @@ const Navbar = () => {
       </div>
 
       <div className="flex items-center gap-4 justify-end">
-        <span className="text-sm text-white/50">TODO: credits</span>
         <Button
           variant="secondary"
           className="rounded-full h-12 w-12 flex items-center justify-center backdrop-blur-xl bg-white/[0.08] border border-white/[0.12] saturate-150 hover:bg-white/[0.12]"
@@ -104,8 +92,7 @@ const Navbar = () => {
             <User className="size-5 text-black" />
           </AvatarFallback>
         </Avatar>
-        {/* TODO: Add autosave and create project */}
-        {!hasCanvas && !hasStyleGuide && <CreateProject />}
+        {!hasCanvas && <CreateProject />}
       </div>
     </div>
   );

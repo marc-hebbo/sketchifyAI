@@ -9,7 +9,6 @@ import {
   PenLine,
   Wand2,
   Zap,
-  Palette,
 } from "lucide-react";
 
 const Page = () => {
@@ -148,7 +147,7 @@ const Page = () => {
             {
               step: "3",
               title: "Export Design",
-              description: "Get refined mockups, style guides, and assets",
+              description: "Get refined mockups and ready-to-use assets",
             },
           ].map((item, index) => (
             <div key={index} className="relative">
@@ -171,9 +170,9 @@ const Page = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {[
             {
-              icon: Palette,
-              title: "Design Systems",
-              description: "Auto-generate consistent color palettes, typography, and component libraries",
+              icon: PenLine,
+              title: "Sketch Matching",
+              description: "Keep your original composition while AI polishes the visual result",
             },
             {
               icon: Wand2,
@@ -183,7 +182,7 @@ const Page = () => {
             {
               icon: Zap,
               title: "Fast Export",
-              description: "Export assets, mockups, and style guides in seconds, ready to use",
+              description: "Export assets and mockups in seconds, ready to use",
             },
           ].map((item, index) => (
             <div

@@ -27,7 +27,7 @@ const testimonials: Testimonial[] = [
   },
   {
     quote:
-      "What impressed me most is the style guide builder. I created a mood board, defined typography and colors, and suddenly I have a living design system. Our team stays consistent without the overhead of Figma library management.",
+      "What impressed me most is how closely the AI follows the original sketch. I can describe the direction, keep my rough layout, and get a polished result without rebuilding everything from scratch.",
     name: "Daniel Rivera",
     role: "Design Lead",
     company: "BrightLabs",
@@ -65,12 +65,12 @@ const userStories: UserStory[] = [
       "Alex sketches three dashboard layouts on paper during a brainstorm. He photographs each and uploads to Sketchify. The AI cleans them up and polishes details within 5 minutes. His team reviews refined mockups immediately, moving concepts forward instead of debating sketch quality.",
   },
   {
-    title: "Design System in Minutes",
-    userType: "Design System Manager",
+    title: "Prompt-Guided Sketch Refinement",
+    userType: "Design Lead",
     story:
-      "As a design system manager, I want to build and maintain a style guide with mood board inspiration, typography rules, and color systems so that my team stays aligned on visual direction.",
+      "As a design lead, I want written direction and rough sketches to work together so that the generated result matches intent without losing the original layout.",
     scenario:
-      "Jamie curates a mood board with 30 reference images, defines primary and secondary color palettes, sets typography rules for headings and body text. The style guide is live and shared with the team. When designers need guidance, they reference the guide instead of asking in Slack.",
+      "Jamie sketches a rough product card and writes a short prompt describing the intended style and content. Sketchify keeps the main shapes and colors from the drawing while turning the idea into a clean mockup the team can review.",
   },
   {
     title: "Rapid Design Iteration",
@@ -84,9 +84,9 @@ const userStories: UserStory[] = [
     title: "Visual Inspiration & Direction",
     userType: "Product Team",
     story:
-      "As a product team, I want to establish a visual mood and aesthetic direction early so that designers, engineers, and stakeholders align on the feel before detailed design work begins.",
+      "As a product team, I want to establish visual direction early from rough drawings and short descriptions so that designers, engineers, and stakeholders align before detailed design work begins.",
     scenario:
-      "Before kicking off a redesign, the team builds a mood board with hero images, defines a color palette, and creates typography samples in Sketchify. This becomes the north star for the project. It takes one afternoon instead of weeks of design direction discussions.",
+      "Before kicking off a redesign, the team sketches several directions and adds short written descriptions for each one. Sketchify turns them into polished options that make the direction easier to compare and discuss.",
   },
   {
     title: "Design Exploration & Variation Testing",
@@ -128,7 +128,7 @@ export default function Testimonials() {
                     <Quote className="h-4 w-4 text-primary" />
                   </div>
                   <p className="text-foreground leading-relaxed text-sm">
-                    "{testimonial.quote}"
+                    &ldquo;{testimonial.quote}&rdquo;
                   </p>
                 </div>
                 <div className="mt-4 pt-4 border-t border-border/40">
