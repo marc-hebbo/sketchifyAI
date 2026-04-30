@@ -1,11 +1,8 @@
 
-import { useMutation } from "convex/react";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import { api } from "../../convex/_generated/api";
 import { toast } from "sonner";
-import { Id } from "../../convex/_generated/dataModel";
 
 export interface MoodBoardImage {
   id: string;
@@ -40,41 +37,11 @@ export const useMoodBoard = (guideImages: MoodBoardImage[]) => {
   const imagesRef = useRef(images);
   imagesRef.current = images;
 
-  const generateUploadUrl = useMutation(api.moodboard.generateUploadUrl);
-  const removeMoodBoardImage = useMutation(api.moodboard.removeMoodBoardImage);
-  const addMoodBoardImage = useMutation(api.moodboard.addMoodBoardImage);
-
   const uploadImage = useCallback(async (
     file: File
   ): Promise<{ storageId: string; url?: string }> => {
-    if (isLocalProject) {
-      return { storageId: `local-${Date.now()}` };
-    }
-    try {
-      const uploadUrl = await generateUploadUrl();
-      const result = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": file.type },
-        body: file,
-      });
-
-      if (!result.ok) {
-        throw new Error(`Upload failed : ${result.statusText}`);
-      }
-      const { storageId } = await result.json();
-
-      if (projectId) {
-        await addMoodBoardImage({
-          projectId: projectId as Id<"projects">,
-          storageId: storageId as Id<"_storage">,
-        });
-      }
-      return { storageId, url: result.url };
-    } catch (error) {
-      console.error(error);
-      throw error;
-    }
-  }, [isLocalProject, generateUploadUrl, addMoodBoardImage, projectId]);
+    return { storageId: `local-${Date.now()}` };
+  }, []);
 
   useEffect(() => {
     if (guideImages && guideImages.length > 0) {
@@ -99,12 +66,10 @@ export const useMoodBoard = (guideImages: MoodBoardImage[]) => {
           );
 
           if (clientIndex !== -1) {
-            // Clean up old blob URL if it exists
             if (mergedImages[clientIndex].preview.startsWith("blob:")) {
               URL.revokeObjectURL(mergedImages[clientIndex].preview);
             }
 
-            // Replace with server image
             mergedImages[clientIndex] = serverImg;
           }
         });
@@ -133,24 +98,6 @@ export const useMoodBoard = (guideImages: MoodBoardImage[]) => {
   const removeImage = async (imageId: string) => {
     const imageToRemove = images.find((img) => img.id === imageId);
     if (!imageToRemove) return;
-
-    if (
-      imageToRemove.isFromServer &&
-      imageToRemove.storageId &&
-      projectId &&
-      !isLocalProject
-    ) {
-      try {
-        await removeMoodBoardImage({
-          projectId: projectId as Id<"projects">,
-          storageId: imageToRemove.storageId as Id<"_storage">,
-        });
-      } catch (error) {
-        console.error(error);
-        toast.error("Failed to remove image from server");
-        return;
-      }
-    }
 
     const updatedImages = images.filter((img) => {
       if (img.id === imageId) {
@@ -205,7 +152,6 @@ export const useMoodBoard = (guideImages: MoodBoardImage[]) => {
   };
 
   useEffect(() => {
-    if (isLocalProject) return;
     const uploadPendingImages = async () => {
       const currentImages = getValues("images");
       for (let i = 0; i < currentImages.length; i++) {
@@ -255,7 +201,7 @@ export const useMoodBoard = (guideImages: MoodBoardImage[]) => {
     if (images.length > 0) {
       uploadPendingImages();
     }
-  }, [images, setValue, getValues, isLocalProject, uploadImage]);
+  }, [images, setValue, getValues, uploadImage]);
 
   useEffect(() => {
     return () => {

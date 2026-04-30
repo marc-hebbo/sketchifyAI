@@ -7,6 +7,7 @@ import {
   Frame,
   Minus,
   MousePointer2,
+  Paintbrush,
   Pen,
   Square,
   Type,
@@ -60,6 +61,7 @@ type DraftShape =
 const TOOL_ITEMS: Array<{ tool: Tool; label: string; icon: React.ReactNode }> =
   [
     { tool: "select", label: "Select", icon: <MousePointer2 className="h-4 w-4" /> },
+    { tool: "bucket", label: "Fill", icon: <Paintbrush className="h-4 w-4" /> },
     { tool: "frame", label: "Frame", icon: <Frame className="h-4 w-4" /> },
     { tool: "rect", label: "Rect", icon: <Square className="h-4 w-4" /> },
     { tool: "ellipse", label: "Ellipse", icon: <Circle className="h-4 w-4" /> },
@@ -171,16 +173,27 @@ const CanvasWorkspace = () => {
 
   // Extract unique colors used in the canvas shapes
   const getCanvasColors = useCallback(() => {
-    const strokes = new Set<string>();
-    const fills = new Set<string>();
+    const strokeUsage = new Map<string, number>();
+    const fillUsage = new Map<string, number>();
+
+    const bump = (usage: Map<string, number>, color: string) => {
+      usage.set(color, (usage.get(color) ?? 0) + 1);
+    };
+
     shapes.forEach((s) => {
-      if (s.stroke && s.stroke !== "transparent") strokes.add(s.stroke);
+      if (s.stroke && s.stroke !== "transparent") bump(strokeUsage, s.stroke);
       if (s.fill && s.fill !== "transparent" && s.fill !== "none")
-        fills.add(s.fill);
+        bump(fillUsage, s.fill);
     });
+
+    const sortByUsage = (usage: Map<string, number>) =>
+      [...usage.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .map(([color]) => color);
+
     return {
-      strokeColors: [...strokes],
-      fillColors: [...fills],
+      strokeColors: sortByUsage(strokeUsage),
+      fillColors: sortByUsage(fillUsage),
     };
   }, [shapes]);
 
@@ -216,21 +229,17 @@ const CanvasWorkspace = () => {
     } finally {
       setIsGenerating(false);
     }
-  }, [captureCanvasAsImage]);
+  }, [captureCanvasAsImage, getCanvasColors]);
 
-  const handleDownloadImage = useCallback(async () => {
+  const handleDownloadImage = useCallback(() => {
     if (!generatedImage) return;
     try {
-      const response = await fetch(generatedImage);
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url;
-      a.download = "generated-ui.png";
+      a.href = generatedImage;
+      a.download = "sketchify-generated.png";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
       toast.success("Image downloaded!");
     } catch {
       toast.error("Failed to download image");
@@ -239,7 +248,17 @@ const CanvasWorkspace = () => {
 
   const handleOpenInNewTab = useCallback(() => {
     if (!generatedImage) return;
-    window.open(generatedImage, "_blank");
+    if (generatedImage.startsWith("data:")) {
+      // Convert data URI to blob URL so the browser can open it as a page
+      const [header, base64] = generatedImage.split(",");
+      const mime = header.match(/:(.*?);/)?.[1] ?? "image/png";
+      const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+      const blob = new Blob([bytes], { type: mime });
+      const url = URL.createObjectURL(blob);
+      window.open(url, "_blank");
+    } else {
+      window.open(generatedImage, "_blank");
+    }
   }, [generatedImage]);
 
   const toLocalPoint = (e: React.PointerEvent): Point => {
@@ -248,41 +267,47 @@ const CanvasWorkspace = () => {
     return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   };
 
+  const hitTestShape = (shape: Shape, point: Point, HIT = 8): boolean => {
+    if ("x" in shape && "w" in shape) {
+      return (
+        point.x >= shape.x &&
+        point.x <= shape.x + shape.w &&
+        point.y >= shape.y &&
+        point.y <= shape.y + shape.h
+      );
+    }
+    if ("startX" in shape && "endX" in shape) {
+      const dx = shape.endX - shape.startX;
+      const dy = shape.endY - shape.startY;
+      const lenSq = dx * dx + dy * dy;
+      if (lenSq === 0) return Math.hypot(point.x - shape.startX, point.y - shape.startY) <= HIT;
+      const t = Math.max(0, Math.min(1, ((point.x - shape.startX) * dx + (point.y - shape.startY) * dy) / lenSq));
+      return Math.hypot(point.x - (shape.startX + t * dx), point.y - (shape.startY + t * dy)) <= HIT;
+    }
+    if ("points" in shape && Array.isArray(shape.points)) {
+      return shape.points.some((p) => Math.hypot(point.x - p.x, point.y - p.y) <= HIT);
+    }
+    return false;
+  };
+
   const handlePointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
     const point = toLocalPoint(e);
+
+    if (tool === "bucket") {
+      if (!currentFill) {
+        toast("Pick a fill color first.", { description: "Open the fill picker on the left and choose a color." });
+        return;
+      }
+      const target = [...shapes].reverse().find((s) => hitTestShape(s, point));
+      if (target) {
+        dispatch(updateShape({ id: target.id, patch: { fill: currentFill } }));
+      }
+      return;
+    }
+
     if (tool === "select") {
-      const HIT = 8; // px tolerance for thin shapes
-      // Check if clicked on a shape — select it; otherwise clear selection
-      const clickedShape = [...shapes].reverse().find((shape) => {
-        // Rect-like shapes (rect, ellipse, frame, generatedui)
-        if ("x" in shape && "w" in shape) {
-          return (
-            point.x >= shape.x &&
-            point.x <= shape.x + shape.w &&
-            point.y >= shape.y &&
-            point.y <= shape.y + shape.h
-          );
-        }
-        // Line / Arrow
-        if ("startX" in shape && "endX" in shape) {
-          const dx = shape.endX - shape.startX;
-          const dy = shape.endY - shape.startY;
-          const lenSq = dx * dx + dy * dy;
-          if (lenSq === 0) return Math.hypot(point.x - shape.startX, point.y - shape.startY) <= HIT;
-          const t = Math.max(0, Math.min(1, ((point.x - shape.startX) * dx + (point.y - shape.startY) * dy) / lenSq));
-          const projX = shape.startX + t * dx;
-          const projY = shape.startY + t * dy;
-          return Math.hypot(point.x - projX, point.y - projY) <= HIT;
-        }
-        // Freedraw
-        if ("points" in shape && Array.isArray(shape.points)) {
-          return shape.points.some(
-            (p) => Math.hypot(point.x - p.x, point.y - p.y) <= HIT
-          );
-        }
-        return false;
-      });
+      const clickedShape = [...shapes].reverse().find((s) => hitTestShape(s, point));
       if (clickedShape) {
         if (!e.shiftKey) dispatch(clearSelection());
         dispatch(selectShape(clickedShape.id));
@@ -626,7 +651,7 @@ const CanvasWorkspace = () => {
 
   return (
     <div className="flex min-h-screen w-full pt-24">
-      <aside className="hidden md:flex w-20 shrink-0 flex-col gap-4 border-r border-white/10 bg-black/30 p-3">
+      <aside className="hidden md:flex w-56 shrink-0 flex-col gap-4 border-r border-white/10 bg-black/30 p-3">
         <ToggleGroup
           type="single"
           value={tool}
@@ -641,10 +666,11 @@ const CanvasWorkspace = () => {
               value={item.tool}
               aria-label={item.label}
               className={cn(
-                "h-10 w-10 rounded-xl border border-transparent data-[state=on]:border-white/40 data-[state=on]:bg-white/10"
+                "h-10 px-3 rounded-xl border border-transparent data-[state=on]:border-white/40 data-[state=on]:bg-white/10 flex items-center gap-3 justify-start"
               )}
             >
               {item.icon}
+              <span className="text-sm font-medium">{item.label}</span>
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
@@ -751,6 +777,7 @@ const CanvasWorkspace = () => {
         <svg
           ref={svgRef}
           className="relative h-full w-full bg-gradient-to-br from-zinc-950 via-zinc-950 to-zinc-900"
+          style={{ cursor: tool === "bucket" ? "cell" : undefined }}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}

@@ -9,6 +9,7 @@ import type { Point } from "../viewport";
 
 export type Tool =
   | "select"
+  | "bucket"
   | "frame"
   | "rect"
   | "ellipse"

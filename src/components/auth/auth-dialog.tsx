@@ -15,7 +15,7 @@ import { Loader2 } from "lucide-react";
 import { useAppDispatch } from "@/redux/store";
 import { setUser } from "@/redux/slice/profile";
 import { toast } from "sonner";
-import { setStoredSession, upsertStoredAccount } from "@/utils/local-auth";
+import { createClient } from "@/utils/supabase/client";
 
 type AuthDialogProps = {
   open: boolean;
@@ -39,8 +39,7 @@ export default function AuthDialog({
   const dispatch = useAppDispatch();
 
   useEffect(() => {
-    if (!open) return;
-    if (!defaultMode) return;
+    if (!open || !defaultMode) return;
     setMode(defaultMode);
   }, [open, defaultMode]);
 
@@ -48,26 +47,44 @@ export default function AuthDialog({
     e.preventDefault();
     setLoading(true);
 
-    try {
-      const account = upsertStoredAccount(email, password);
-      const session = setStoredSession(email);
+    const supabase = createClient();
 
-      if (!account || !session) {
-        throw new Error("Failed to start local account session");
+    try {
+      if (mode === "sign-up") {
+        const { data, error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+
+        const user = data.user;
+        if (user) {
+          dispatch(
+            setUser({
+              id: user.id,
+              name: user.email?.split("@")[0] ?? null,
+              email: user.email ?? null,
+              image: null,
+            })
+          );
+          toast.success("Account created! Check your email to confirm.");
+        }
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (error) throw error;
+
+        const user = data.user;
+        dispatch(
+          setUser({
+            id: user.id,
+            name: user.email?.split("@")[0] ?? null,
+            email: user.email ?? null,
+            image: null,
+          })
+        );
+        toast.success("Signed in!");
       }
 
-      dispatch(
-        setUser({
-          id: null,
-          name: session.name,
-          email: session.email,
-          image: null,
-        })
-      );
-
-      toast.success(
-        mode === "sign-up" ? "Account created locally!" : "Signed in locally!"
-      );
       onOpenChange(false);
       onSuccess();
     } catch (err: unknown) {
@@ -88,8 +105,8 @@ export default function AuthDialog({
           </DialogTitle>
           <DialogDescription>
             {mode === "sign-in"
-              ? "Sign in locally to continue with SketchifyAI."
-              : "Create a local account to get started with SketchifyAI."}
+              ? "Sign in to continue with SketchifyAI."
+              : "Create an account to get started with SketchifyAI."}
           </DialogDescription>
         </DialogHeader>
 

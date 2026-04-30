@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { clearUser, setUser } from "@/redux/slice/profile";
 import { useAppDispatch } from "@/redux/store";
-import { getStoredSession } from "@/utils/local-auth";
+import { createClient } from "@/utils/supabase/client";
 
 type Props = {
   children: React.ReactNode;
@@ -13,21 +13,41 @@ export default function LocalSessionSync({ children }: Props) {
   const dispatch = useAppDispatch();
 
   useEffect(() => {
-    const session = getStoredSession();
+    const supabase = createClient();
 
-    if (!session) {
-      dispatch(clearUser());
-      return;
-    }
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        dispatch(
+          setUser({
+            id: session.user.id,
+            name: session.user.email?.split("@")[0] ?? null,
+            email: session.user.email ?? null,
+            image: null,
+          })
+        );
+      } else {
+        dispatch(clearUser());
+      }
+    });
 
-    dispatch(
-      setUser({
-        id: null,
-        name: session.name,
-        email: session.email,
-        image: null,
-      })
-    );
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        dispatch(
+          setUser({
+            id: session.user.id,
+            name: session.user.email?.split("@")[0] ?? null,
+            email: session.user.email ?? null,
+            image: null,
+          })
+        );
+      } else {
+        dispatch(clearUser());
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, [dispatch]);
 
   return <>{children}</>;

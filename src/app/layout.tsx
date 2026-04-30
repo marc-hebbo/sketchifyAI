@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "@/theme/provider";
 import { Toaster } from "@/components/ui/sonner";
-import { ConvexClientProvider } from "@/convex/provider";
 import ReduxProvider from "@/redux/provider";
 import Preloader from "@/components/preloader";
 import LocalSessionSync from "@/components/auth/local-session-sync";
@@ -31,23 +30,21 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <ConvexClientProvider>
-          <ThemeProvider
-            attribute="class"
-            defaultTheme="dark"
-            enableSystem
-            disableTransitionOnChange
-          >
-            <ReduxProvider preloadedState={{}}>
-              <LocalSessionSync>
-                <Preloader>
-                  {children}
-                </Preloader>
-              </LocalSessionSync>
-            </ReduxProvider>
-            <Toaster />
-          </ThemeProvider>
-        </ConvexClientProvider>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="dark"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <ReduxProvider preloadedState={{}}>
+            <LocalSessionSync>
+              <Preloader>
+                {children}
+              </Preloader>
+            </LocalSessionSync>
+          </ReduxProvider>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

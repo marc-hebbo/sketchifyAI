@@ -1,10 +1,7 @@
 "use client";
-import { useQuery } from "convex/react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import React from "react";
-import { api } from "../../../convex/_generated/api";
-import { Id } from "../../../convex/_generated/dataModel";
 import { CircleQuestionMark, Hash, LayoutTemplate, User } from "lucide-react";
 import { Button } from "../ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
@@ -43,15 +40,6 @@ const Navbar = () => {
 
   // TODO: uncomment this when we have a project
 
-  const shouldFetchProject =
-    !!projectId && !projectId.startsWith("local-") && !!me?.id;
-  const project = useQuery(
-    api.projects.getProject,
-    shouldFetchProject ? { projectId: projectId as Id<"projects"> } : "skip"
-  );
-
-  // const project = {title: "My Project"};
-
   const hasCanvas = pathname.includes("canvas");
   const hasStyleGuide = pathname.includes("style-guide");
 
@@ -68,7 +56,7 @@ const Navbar = () => {
         {!hasCanvas ||
           (!hasStyleGuide && (
             <div className="lg:inline-block hidden rounded-full text-primary/60 border border-white/[0.12] backdrop-blur-xl bg-white/[0.08] px-4 py-2 text-sm saturate-150">
-              Project / {project?.name}
+              Project / {projectId || "untitled"}
             </div>
           ))}
       </div>

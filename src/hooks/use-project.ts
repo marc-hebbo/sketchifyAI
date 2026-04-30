@@ -8,10 +8,7 @@ import {
   removeProject,
 } from "@/redux/slice/projects";
 import { useAppDispatch, useAppSelector } from "@/redux/store";
-import { useMutation } from "convex/react";
 import { toast } from "sonner";
-import { api } from "../../convex/_generated/api";
-import { Id } from "../../convex/_generated/dataModel";
 
 const generateGradientThumbnail = () => {
   const gradients = [
@@ -53,10 +50,6 @@ export const useProjectCreation = () => {
   const profileState = useAppSelector((state) => state.profile);
   const user = profileState.user;
   const projectsState = useAppSelector((state) => state.projects);
-  const shapesState = useAppSelector((state) => state.shapes);
-
-  const convexCreateProject = useMutation(api.projects.createProject);
-  const convexDeleteProject = useMutation(api.projects.deleteProject);
 
   const createProject = async (name?: string) => {
     dispatch(createProjectStart());
@@ -86,23 +79,11 @@ export const useProjectCreation = () => {
         return;
       }
 
-      const result = await convexCreateProject({
-        userId: user.id as Id<"users">,
-        name: name || undefined,
-        sketchesData: {
-          shapes: shapesState.shapes,
-          tool: shapesState.tool,
-          selected: shapesState.selected,
-          frameCounter: shapesState.frameCounter,
-        },
-        thumbnail,
-      });
-
       dispatch(
         addProject({
-          _id: result.projectId,
-          name: result.name,
-          projectNumber: result.projectNumber,
+          _id: `local-${Date.now()}`,
+          name: name || `Project ${projectsState.projects.length + 1}`,
+          projectNumber: projectsState.projects.length + 1,
           thumbnail,
           lastModified: Date.now(),
           createdAt: Date.now(),
@@ -123,18 +104,6 @@ export const useProjectCreation = () => {
 
   const deleteProject = async (projectId: string) => {
     try {
-      if (projectId.startsWith("local-")) {
-        dispatch(removeProject(projectId));
-        toast.success("Project deleted locally");
-        return;
-      }
-
-      if (!user?.id) return;
-
-      await convexDeleteProject({
-        projectId: projectId as Id<"projects">,
-      });
-
       dispatch(removeProject(projectId));
       toast.success("Project deleted successfully");
     } catch (error) {
