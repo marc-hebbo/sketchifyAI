@@ -111,7 +111,11 @@ const ProjectsList = () => {
                   <AlertDialogHeader>
                     <AlertDialogTitle className="text-xl font-semibold">Delete Project?</AlertDialogTitle>
                     <AlertDialogDescription className="text-muted-foreground">
-                      This will permanently remove <span className="text-foreground font-medium">"{project.name || "Untitled Project"}"</span>. This action cannot be undone.
+                      This will permanently remove{" "}
+                      <span className="text-foreground font-medium">
+                        &ldquo;{project.name || "Untitled Project"}&rdquo;
+                      </span>
+                      . This action cannot be undone.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter className="gap-2 sm:gap-0">

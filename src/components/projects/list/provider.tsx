@@ -6,20 +6,17 @@ import React, { useEffect } from "react";
 
 type Props = {
   children: React.ReactNode;
-  initialProjects: { _valueJSON?: unknown } | null;
+  initialProjects: ProjectSummary[];
 };
 
 const ProjectsProvider = ({ children, initialProjects }: Props) => {
   const dispatch = useAppDispatch();
   useEffect(() => {
-    if (initialProjects?._valueJSON) {
-      const projectsData = Array.isArray(initialProjects._valueJSON)
-        ? (initialProjects._valueJSON as ProjectSummary[])
-        : [];
+    if (initialProjects.length > 0) {
       dispatch(
         fetchProjectsSuccess({
-          projects: projectsData,
-          total: projectsData.length,
+          projects: initialProjects,
+          total: initialProjects.length,
         })
       );
     }

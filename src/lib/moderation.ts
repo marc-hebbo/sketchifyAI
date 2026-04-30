@@ -10,6 +10,16 @@ export interface ModerationResult {
   error?: string;
 }
 
+type GeminiModerationPart =
+  | { text: string }
+  | { inlineData: { mimeType: string; data: string } };
+
+interface GeminiModerationJson {
+  status?: string;
+  reason?: string;
+  error?: string;
+}
+
 // Quick keyword check for obviously inappropriate content - No-Generation Zone
 const BANNED_KEYWORDS = [
   "bloody", "weapon", "gore", "kill", "murder", "violence", "violent", "gun", "knife",
@@ -44,7 +54,7 @@ export async function moderateContent(
   }
 
   try {
-    const parts: any[] = [
+    const parts: GeminiModerationPart[] = [
       {
         text: `System Instruction:
 You are the Primary Safety Firewall for a sketch-to-app pipeline. You sit at the very beginning of the stack. Your only job is to validate the input. If you fail, the entire system is compromised.
@@ -113,7 +123,9 @@ IF SAFE: Output exactly: {"status": "safe", "action": "proceed_to_design"}`,
     }
     
     try {
-      const result = JSON.parse(resultText.replace(/```json\n?|\n?```/g, "").trim());
+      const result = JSON.parse(
+        resultText.replace(/```json\n?|\n?```/g, "").trim()
+      ) as GeminiModerationJson;
       
       if (result.status === "blocked") {
         return {
@@ -126,7 +138,7 @@ IF SAFE: Output exactly: {"status": "safe", "action": "proceed_to_design"}`,
       return {
         isInappropriate: false
       };
-    } catch (e) {
+    } catch {
       console.error("Failed to parse moderation response:", resultText);
       return { isInappropriate: false };
     }
