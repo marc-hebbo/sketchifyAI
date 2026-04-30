@@ -176,7 +176,7 @@ function buildColorInterpretations(colors?: CanvasColors): string {
 
 /**
  * Build the full Gemini prompt for strict sketch-to-image transformation.
- * The sketch is the spatial ground truth. The user text defines what the sketch represents.
+ * The user text defines the target subject. The sketch and colors guide the result.
  */
 function buildPrompt(brief?: string, colors?: CanvasColors): string {
   const palette = extractPalette(colors);
@@ -184,10 +184,12 @@ function buildPrompt(brief?: string, colors?: CanvasColors): string {
   const colorBlock = buildColorInterpretations(colors);
   const hasColorHints = colorBlock.length > 0;
   const hasStrictPalette = strictPalette.length > 0;
+  const briefText = brief?.trim() ?? "";
+  const hasBrief = briefText.length > 0;
 
-  const styleIntent = brief?.trim()
-    ? `USER DESCRIPTION (required semantic meaning): "${brief.trim()}"`
-    : "USER DESCRIPTION: No written description was provided, so infer the subject from the drawing only.";
+  const styleIntent = hasBrief
+    ? `USER DESCRIPTION (primary intent): "${briefText}"`
+    : "USER DESCRIPTION: No written description was provided, so infer intent from the sketch only.";
 
   const strictPaletteSection = hasStrictPalette
     ? `LOCKED COLOR PALETTE (required):
@@ -201,24 +203,31 @@ function buildPrompt(brief?: string, colors?: CanvasColors): string {
     ? `Interpret each colored region according to its semantic meaning:\n${colorBlock}`
     : "Each shape represents a distinct object or surface. Interpret based on context.";
 
-  return `Using the provided sketch image and the user's written description together, generate a clean 2D illustration.
+  return `Using the user's written description, the provided sketch image, and the sketch colors together, generate a clean 2D illustration.
 
 ${styleIntent}
 
-CORE INTERPRETATION RULES (non-negotiable):
-- The written description defines what the drawing is supposed to represent
-- The drawing defines the exact composition, positions, shapes, and color placement
-- Always associate the drawing with the written description; do not ignore either one
-- If the drawing is abstract or rough, interpret its shapes as the objects described by the user
-- If the text and drawing differ, keep the drawing's layout but use the text to label the intended subject
+CORE INTERPRETATION ORDER (non-negotiable):
+1) User text is the primary instruction and decides what the image should actually be
+2) Sketch geometry/layout guides the approximate shapes, region boundaries, placement, and proportions
+3) Sketch colors define the simple palette and color placement
 
-STRUCTURAL CONSTRAINTS (non-negotiable):
-- Preserve the exact shapes, boundaries, and composition from the sketch
-- Every region must appear at the same position and scale as in the sketch
-- Do NOT add new objects, remove existing ones, or recompose the scene
-- Do NOT merge separate regions into one
-- Do NOT distort proportions or alter the perspective
-- Keep all edges aligned with the sketch boundaries
+TEXT-TO-SKETCH BINDING RULES (non-negotiable):
+- Always make the final image based on all three inputs: written description + sketch + colors
+- Treat the user text as the intended subject, not as optional context
+- Convert each described subject/detail in the text into a visual interpretation of the closest matching sketch regions
+- Do not ignore user text when it can be applied to current sketch regions
+- Do not output the sketch exactly as-is, and do not simply clean up the raw drawing without applying the written description
+- If the sketch is rough or abstract, infer how its shapes can represent what the user wrote
+- If text asks for details not present in geometry, apply them as simple 2D markings, labels, colors, or styling on the existing shape areas
+
+SKETCH SHAPE CONSTRAINTS:
+- Keep the final shapes close to the sketch, but polished and intentionally drawn
+- Keep the same overall composition, object placement, and proportions
+- Keep every major region in roughly the same position and scale as the sketch
+- Do not replace the sketch with a totally new composition
+- Do not return a direct copy, screenshot, or near-identical redraw of the input sketch
+- Minor shape cleanup is allowed only when it helps the result match what the user wrote
 
 COLOR AND SEMANTIC INTERPRETATION:
 ${colorSection}
@@ -232,9 +241,14 @@ ${strictPaletteSection}
 - Make the result look like a polished 2D cartoon, icon, sticker, or clean digital illustration
 - Keep edges sharp and aligned with the sketch structure
 
+REFINEMENT GOAL:
+- This is always an interpretation pass from written description + sketch + colors into a polished 2D image
+- Keep "what the user wrote, shaped like the sketch, colored like the sketch" as the guiding principle
+- The result must clearly reflect the user's text while staying close to sketch structure and color intent
+
 Output quality: clean, simple, polished 2D illustration with clear color matching
 
-The final image must look like a refined 2D version of the user's drawing that clearly matches the user's written description. Same structure, same layout, same simple color identity.`;
+The final image must clearly show what the user wrote, using shapes that stay close to the sketch and simple colors that stay close to the sketch palette.`;
 }
 
 /**
@@ -265,13 +279,14 @@ async function generateWithGemini(
       {
         role: "user",
         parts: [
-          { inlineData: { mimeType, data } },
           { text: prompt },
+          { inlineData: { mimeType, data } },
         ],
       },
     ],
     generationConfig: {
       responseModalities: ["IMAGE", "TEXT"],
+      temperature: 0.2,
     },
   };
 
