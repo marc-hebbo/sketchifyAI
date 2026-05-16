@@ -20,6 +20,7 @@ Create a `.env.local` file with:
 
 ```bash
 GEMINI_API_KEY=...
+RECRAFT_API_KEY=...
 ```
 
 The app now runs in guest mode by default (no login flow required).
